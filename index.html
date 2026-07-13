@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloom — Adaptive Learning Pathway</title>
+<style>
+  :root{
+    --bg:#f4f6f2; --panel:#ffffff; --ink:#232a26; --muted:#6b736c; --faint:#9aa39b;
+    --line:#e3e7dd; --line-2:#edf0e9;
+    --accent:#4f6f52; --accent-d:#3c583f; --accent-soft:#e8efe4;
+    --slate:#7c869b; --track:#dde2ea;
+    --ok:#4f7a4f; --ok-soft:#e7f0e5; --warn:#8f6a2f; --warn-soft:#f3ecdc;
+    --danger:#a5503f; --danger-soft:#f3e2dd; --sidebar:#eef1ea;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,'Times New Roman',serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); min-height:100vh;
+  }
+  h1,h2{margin:0}
+  .muted{color:var(--muted)} .faint{color:var(--faint)} .small{font-size:12.5px}
+
+  /* ---------- App shell + sidebar ---------- */
+  .app{display:grid; grid-template-columns:238px 1fr; min-height:100vh}
+  .side{background:var(--sidebar); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; padding:20px 16px; position:sticky; top:0; height:100vh}
+  .brand{display:flex; align-items:center; gap:10px; padding:2px 6px 20px}
+  .brand-name{font-family:var(--serif); font-size:20px; font-weight:600; letter-spacing:.3px; line-height:1}
+  .brand-sub{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-top:3px}
+  .nav{display:flex; flex-direction:column; gap:4px}
+  .nav-item{display:flex; align-items:center; gap:11px; width:100%; text-align:left; background:none;
+    border:1px solid transparent; border-radius:10px; padding:9px 11px; font:inherit; font-size:14px;
+    font-weight:550; color:var(--muted); cursor:pointer; transition:.12s}
+  .nav-item:hover{background:#e6ebe1; color:var(--ink)}
+  .nav-item.active{background:var(--panel); color:var(--accent-d); border-color:var(--line);
+    box-shadow:0 1px 2px rgba(0,0,0,.03); font-weight:650}
+  .nav-item .ni{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7;
+    stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto}
+  .side-mastery{margin-top:22px; padding:14px; background:var(--panel); border:1px solid var(--line); border-radius:12px}
+  .side-cap{font-size:10px; text-transform:uppercase; letter-spacing:.09em; color:var(--faint); font-weight:700}
+  .side-tier{font-size:15px; font-weight:650; margin:3px 0 10px}
+  .side-sub{font-size:11px; color:var(--muted); margin-top:5px}
+  .side-foot{margin-top:auto; display:flex; flex-direction:column; gap:12px}
+  .demo-state{font-size:10px; color:var(--faint); text-align:center; letter-spacing:.04em}
+
+  /* ---------- Main / page head ---------- */
+  .main{padding:32px 42px 64px; max-width:980px}
+  .page{animation:fade .22s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(5px)}to{opacity:1; transform:none}}
+  .pagehead{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px}
+  .trail{display:flex; align-items:center; gap:7px; margin-bottom:7px}
+  .tcrumb{background:none; border:none; font:inherit; font-size:13px; color:var(--muted); cursor:pointer; padding:0}
+  .tcrumb:hover{color:var(--accent)}
+  .tsep{color:var(--faint)} .tcur{font-size:13px; color:var(--faint)}
+  .ptitle{font-family:var(--serif); font-size:27px; font-weight:600; letter-spacing:.2px}
+  .ph-right{padding-bottom:5px}
+
+  .pill{display:inline-block; background:var(--accent-soft); color:var(--accent-d); border:1px solid #d3e0cd;
+    padding:4px 12px; border-radius:999px; font-size:12px; font-weight:650}
+  .pill.slate{background:#eceef3; color:#586179; border-color:#dde1ea}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px}
+  .cap{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--faint); font-weight:700; margin-bottom:10px}
+  .banner{background:var(--accent-soft); border:1px solid #d3e0cd; color:var(--accent-d);
+    border-radius:12px; padding:12px 16px; font-weight:600; font-size:13.5px; margin-bottom:16px}
+
+  /* ---------- Buttons ---------- */
+  .btn{font:inherit; font-weight:600; font-size:14px; cursor:pointer; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink); padding:10px 17px; border-radius:10px; transition:.13s}
+  .btn:hover{border-color:var(--accent); color:var(--accent-d)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  .btn.primary:hover{background:var(--accent-d); color:#fff}
+  .btn.ok{background:var(--ok-soft); border-color:#cfe0cc; color:#3a6b3a}
+  .btn.ok:hover{border-color:var(--ok); color:#3a6b3a}
+  .btn.danger{background:var(--danger-soft); border-color:#e6cbc4; color:#8f4636}
+  .btn.danger:hover{border-color:var(--danger); color:#8f4636}
+  .btn.ghost{background:transparent}
+  .btn.lg{padding:13px 24px; font-size:15px}
+  .actions-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:22px}
+
+  /* ---------- Dashboard ---------- */
+  .dash{display:grid; grid-template-columns:1.1fr 1fr; gap:18px}
+  .dash .wide{grid-column:1 / -1}
+  .mastery-panel{display:flex; flex-direction:column; align-items:center; text-align:center}
+  .mastery-label{font-weight:600; margin-top:6px}
+  .continue .big{font-size:18px; font-weight:650; margin-top:2px}
+
+  /* ---------- Curriculum: capsule cards ---------- */
+  .subgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+  .subcard{position:relative; text-align:left; background:var(--panel); border:1px solid var(--line);
+    border-radius:16px; padding:18px; cursor:pointer; font:inherit; transition:.14s;
+    display:flex; flex-direction:column; gap:11px}
+  .subcard:hover{border-color:var(--accent); box-shadow:0 8px 22px rgba(60,88,63,.10); transform:translateY(-2px)}
+  .subcard.is-done{border-color:#cfe0cc; background:linear-gradient(180deg,#fbfdfa,#f4f8f1)}
+  .subcard-head{display:flex; align-items:center; justify-content:space-between; min-height:40px}
+  .subcard-ico{width:40px; height:40px; border-radius:11px; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto}
+  .subcard-ico .si{width:23px; height:23px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+  .subcard.is-done .subcard-ico{background:#e2ede0}
+  .subcard-name{font-size:15.5px; font-weight:650}
+  .subcard-meta{font-size:12px; color:var(--muted); margin-top:-4px}
+  .mini-bar{height:6px; background:var(--track); border-radius:999px; overflow:hidden; margin-top:2px}
+  .mini-bar>div{height:100%; background:var(--accent); border-radius:999px; transition:width .4s}
+  .chip{font-size:11px; font-weight:700; border-radius:999px; padding:4px 10px; white-space:nowrap}
+  .chip.ok{background:var(--ok-soft); color:#3a6b3a} .chip.warn{background:var(--warn-soft); color:var(--warn)}
+  .chip.muted{background:#eef0ec; color:var(--muted)}
+  .check{width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex:0 0 auto}
+
+  /* ---------- Curriculum: bloom / xp panel ---------- */
+  .bloom-panel{display:flex; align-items:center; justify-content:space-between; gap:26px; margin-top:20px; padding:22px 26px}
+  .bloom-left{flex:1}
+  .bloom-right{flex:0 0 auto}
+  .xp{height:14px; background:var(--track); border-radius:999px; overflow:hidden; margin:6px 0 9px}
+  .xp.mini{height:8px; margin:6px 0 0}
+  .xp-fill{height:100%; background:linear-gradient(90deg,var(--accent),#6f9070); border-radius:999px; transition:width .5s}
+
+  /* ---------- Subtopic hub ---------- */
+  .subtopic-hero{display:flex; align-items:center; gap:18px; margin-bottom:18px}
+  .subtopic-ico-lg{width:58px; height:58px; border-radius:15px; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto}
+  .subtopic-ico-lg .si{width:31px; height:31px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+  .subtopic-hero h2{font-family:var(--serif); font-size:22px; margin-bottom:4px}
+  .choice{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .choice-card{text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:22px; cursor:pointer; font:inherit; transition:.14s}
+  .choice-card:hover{border-color:var(--accent); box-shadow:0 8px 22px rgba(60,88,63,.10); transform:translateY(-2px)}
+  .choice-ico{width:44px; height:44px; border-radius:12px; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; margin-bottom:14px}
+  .choice-ico .ci{width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+  .choice-t{font-size:17px; font-weight:650; margin-bottom:5px}
+  .choice-d{color:var(--muted); font-size:13.5px; line-height:1.5}
+
+  /* ---------- Study lesson ---------- */
+  .lesson-tier{font-size:12px; color:var(--accent-d); font-weight:650; margin-bottom:6px}
+  .lesson h2{font-family:var(--serif); font-size:23px; margin-bottom:14px}
+  .lesson p{font-size:15px; line-height:1.75; color:#343a35; margin:0}
+  .recap{display:flex; gap:8px; flex-wrap:wrap}
+  .assistant{display:flex; gap:8px; margin-top:22px; padding-top:18px; border-top:1px solid var(--line-2)}
+  .assistant input{flex:1; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; background:#fbfcfa; color:var(--ink)}
+
+  /* ---------- Assessment ---------- */
+  .mastery{background:#fafcf9; border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:20px}
+  .bar{height:12px; background:var(--track); border-radius:999px; overflow:hidden}
+  .bar .fill{height:100%; background:linear-gradient(90deg,var(--accent),#6f9070); border-radius:999px; transition:width .4s}
+  .skills{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px}
+  .skill{font-size:12px; background:#eef1ea; color:#5c645b; border:1px solid var(--line); border-radius:8px; padding:3px 9px}
+  .skill.done{background:var(--ok-soft); color:#3a6b3a; border-color:#cfe0cc}
+  .q-tag{font-size:12px; color:var(--accent-d); font-weight:650; margin-bottom:8px}
+  .q-prompt{font-size:17px; font-weight:600; line-height:1.45; margin-bottom:14px}
+  .opts{display:flex; flex-direction:column; gap:9px}
+  .opt{text-align:left; font:inherit; font-size:14.5px; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; padding:12px 15px; cursor:pointer; transition:.12s}
+  .opt:hover{border-color:var(--accent)}
+  .opt.sel{border-color:var(--accent); background:var(--accent-soft)}
+  .opt.correct{border-color:#bcd8b8; background:var(--ok-soft); color:#33683a; font-weight:600}
+  .opt.wrong{border-color:#e6c3ba; background:var(--danger-soft); color:#8f4636}
+  .area{width:100%; min-height:80px; resize:vertical; border:1px solid var(--line); border-radius:11px;
+    padding:12px 14px; font:inherit; background:#fbfcfa; color:var(--ink)}
+  .graded{margin-top:18px; border-top:1px solid var(--line-2); padding-top:16px}
+  .answer{background:#f3f7f1; border:1px solid #d8e6d4; border-radius:10px; padding:11px 14px; margin-bottom:14px; font-size:14px}
+  .big-check{width:54px; height:54px; margin:0 auto; border-radius:50%; background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:27px; font-weight:800}
+
+  /* ---------- Defense chat ---------- */
+  .defense-lead{margin-bottom:12px}
+  .chat{display:flex; flex-direction:column; gap:13px; background:#fafcf9; border:1px solid var(--line);
+    border-radius:13px; padding:18px; max-height:360px; overflow:auto}
+  .msg{display:flex; flex-direction:column; max-width:80%}
+  .msg.ex{align-self:flex-start} .msg.me{align-self:flex-end; align-items:flex-end}
+  .who{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); margin:0 4px 4px}
+  .bubble{padding:11px 14px; border-radius:14px; font-size:14px; line-height:1.5}
+  .msg.ex .bubble{background:var(--panel); border:1px solid var(--line); border-top-left-radius:4px}
+  .msg.me .bubble{background:var(--accent); color:#fff; border-top-right-radius:4px}
+  .reply-btn{display:block; text-align:left; width:100%; margin-top:14px; background:var(--panel);
+    border:1px dashed var(--accent); color:var(--accent-d); border-radius:11px; padding:12px 15px;
+    font:inherit; font-size:14px; cursor:pointer; transition:.12s}
+  .reply-btn:hover{background:var(--accent-soft)}
+  .verdict{margin-top:16px; border-top:1px solid var(--line-2); padding-top:16px}
+
+  /* ---------- Progression / exit ---------- */
+  .prog{max-width:520px; margin:10px auto; text-align:center}
+  .prog-sub{color:var(--muted); margin:10px 0 24px; line-height:1.65}
+  .exit-panel{max-width:440px; margin:24px auto; text-align:center}
+
+  /* ---------- Flower ---------- */
+  .flower{display:block; margin:0 auto}
+
+  /* ---------- Landing + entry (full screen) ---------- */
+  .landing,.entry{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    position:relative; background-image:radial-gradient(rgba(120,140,120,.10) 1px, transparent 1px); background-size:22px 22px}
+  .landing-inner{max-width:450px; text-align:center}
+  .landing-title{font-family:var(--serif); font-size:46px; font-weight:600; margin:16px 0 8px; letter-spacing:.5px}
+  .landing-sub{color:var(--muted); font-size:15px; line-height:1.65; margin-bottom:28px}
+  .landing-actions{display:flex; gap:12px; justify-content:center; flex-wrap:wrap}
+  .entry-inner{width:100%; max-width:620px; text-align:center}
+  .entry-q{font-family:var(--serif); font-size:34px; font-weight:600; margin-bottom:28px}
+  .entry-bar{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line);
+    border-radius:999px; padding:8px 8px 8px 22px; box-shadow:0 8px 24px rgba(60,80,60,.07)}
+  .entry-input{flex:1; border:none; outline:none; font:inherit; font-size:16px; background:none; color:var(--ink)}
+  .entry-send{width:42px; height:42px; border-radius:50%; border:none; background:var(--accent); color:#fff;
+    font-size:19px; line-height:1; cursor:pointer; flex:0 0 auto; transition:.13s}
+  .entry-send:hover{background:var(--accent-d)}
+  .entry-hint{color:var(--faint); font-size:13px; margin-top:16px}
+  .entry-settings{position:absolute; top:22px; right:26px; width:38px; height:38px; border-radius:50%;
+    border:1px solid var(--line); background:var(--panel); color:var(--muted); cursor:pointer;
+    display:flex; align-items:center; justify-content:center}
+  .entry-settings svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.6}
+  .entry-settings:hover{color:var(--accent)}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(16px);
+    background:#2c342d; color:#fff; padding:11px 20px; border-radius:12px; font-size:13.5px; font-weight:600;
+    opacity:0; pointer-events:none; transition:.25s; z-index:50; box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  /* ---------- Responsive ---------- */
+  @media(max-width:820px){ .subgrid{grid-template-columns:1fr 1fr} .dash{grid-template-columns:1fr} }
+  @media(max-width:720px){
+    .app{grid-template-columns:1fr}
+    .side{position:static; height:auto; flex-direction:row; align-items:center; flex-wrap:wrap; gap:10px; padding:12px 16px}
+    .brand{padding:0 12px 0 0} .nav{flex-direction:row}
+    .side-mastery{display:none}
+    .side-foot{margin:0 0 0 auto; flex-direction:row; align-items:center; gap:14px}
+    .main{padding:22px 18px 54px}
+  }
+  @media(max-width:520px){ .subgrid,.choice{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast" class="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   BLOOM — adaptive learning pathway (throwaway POC UI, all mocked).
+   A clickable state machine of screens. No AI, no backend.
+   ============================================================ */
+
+/* ---------- 1. MOCK DATA (hardcoded) ---------- */
+const TIER_NAMES = {
+  1: 'Tier 1 · Knowledge & Comprehension',
+  2: 'Tier 2 · Application & Analysis',
+  3: 'Tier 3 · Synthesis & Evaluation'
+};
+
+const SUBTOPICS = [
+  {
+    name: 'Gravitational fields',
+    skills: ['g = F/m', 'g = GM/r²', "Newton's law of gravitation"],
+    study: {
+      1: "A gravitational field is the region around a mass where another mass feels a force. Field strength g is the force per unit mass: g = F/m, measured in N/kg. Near Earth's surface g ≈ 9.8 N/kg and points toward the centre of the Earth.",
+      2: "For a point mass, g = GM/r². Field strength falls off with the inverse square of distance, so doubling r quarters g. To find a force, multiply the local field by the mass: F = mg. Fields from several masses add as vectors.",
+      3: "Synthesis: the point-mass model assumes spherical symmetry and treats all the mass as concentrated at a point. It breaks down inside an extended body, for non-spherical distributions, and in strong fields where general relativity is needed. Be ready to justify where g = GM/r² applies and where it fails."
+    },
+    defenseOpener: "You've claimed to understand gravitational fields. Tell me — when does the g = GM/r² point-mass model stop being valid, and why?"
+  },
+  {
+    name: 'Electric fields',
+    skills: ['E = F/q', "Coulomb's law", 'E from a point charge'],
+    study: {
+      1: "An electric field surrounds any charge. Field strength E is the force per unit positive charge: E = F/q, in N/C. Field lines run from positive to negative charges and never cross.",
+      2: "Coulomb's law gives the force between point charges: F = kq₁q₂/r², an inverse-square law. The field of a point charge is E = kQ/r². Superpose fields from several charges as vectors to find the net field.",
+      3: "Synthesis: a point-charge model ignores the finite size of real charge distributions and the way conductors rearrange charge. At a conductor's surface the field is perpendicular and the interior field is zero. Be ready to defend when the point model is a good approximation."
+    },
+    defenseOpener: "You say you understand electric fields. Where does treating a charge as a point source break down, and what changes at a conductor's surface?"
+  },
+  {
+    name: 'Magnetic fields',
+    skills: ['F = BIL', 'F = qvB', 'Direction rules'],
+    study: {
+      1: "A magnetic field exerts forces on moving charges and currents. A current-carrying wire in a field feels F = BIL when the current is perpendicular to the field. Magnetic flux density B is measured in tesla (T).",
+      2: "A single charge moving through a field feels F = qvB, maximum when v is perpendicular to B and zero when parallel. The force is always perpendicular to both v and B, given by the right-hand rule, which curves the charge into a circle.",
+      3: "Synthesis: magnetism and electricity are frame-dependent facets of one electromagnetic field. A charge at rest feels no magnetic force, but in a frame where it moves it does. Be ready to reason about why the magnetic force is always perpendicular to motion and does no work."
+    },
+    defenseOpener: "Convince me you understand magnetic fields. Why does a static charge feel no magnetic force while a moving one does?"
+  }
+];
+
+// One question per skill, per tier (index aligns with the skills array).
+const QUESTIONS = {
+  0: {
+    1: [
+      {type:'mcq',  prompt:'Gravitational field strength g is defined as…', options:['F · m','F / m','m / F','G · M'], answer:1},
+      {type:'short',prompt:'State the units of gravitational field strength.', answer:'N/kg (or m/s²)'},
+      {type:'mcq',  prompt:"In Newton's law of gravitation, the force between two masses is proportional to…", options:['r','1/r','1/r²','r²'], answer:2}
+    ],
+    2: [
+      {type:'short',prompt:'A 2 kg mass sits where g = 9.8 N/kg. Find the force on it, then on a 5 kg mass at the same point.', answer:'19.6 N, then 49 N  (F = mg)'},
+      {type:'mcq',  prompt:'Double your distance from a point mass. Its field strength g becomes…', options:['×2','÷2','÷4','×4'], answer:2},
+      {type:'mcq',  prompt:'Surface field is g. At radius 2R (same mass) the field is about…', options:['g','g/2','g/4','2g'], answer:2}
+    ]
+  },
+  1: {
+    1: [
+      {type:'mcq',  prompt:'Electric field strength E is defined as…', options:['F · q','q / F','F / q','k · Q'], answer:2},
+      {type:'short',prompt:'State the units of electric field strength.', answer:'N/C (or V/m)'},
+      {type:'mcq',  prompt:"In Coulomb's law the force between two point charges is proportional to…", options:['1/r²','r²','1/r','r'], answer:0}
+    ],
+    2: [
+      {type:'short',prompt:'A +2 μC charge feels a force of 0.10 N in a field. Find E.', answer:'E = F/q = 0.10 / 2×10⁻⁶ = 5×10⁴ N/C'},
+      {type:'mcq',  prompt:'Electric field lines point…', options:['from − to +','from + to −','in closed loops','randomly'], answer:1},
+      {type:'mcq',  prompt:'Halve the distance to a point charge. The field E becomes…', options:['×2','×4','÷2','÷4'], answer:1}
+    ]
+  },
+  2: {
+    1: [
+      {type:'mcq',  prompt:'The force on a current-carrying wire in a field is F =…', options:['qvB','BIL','½BIL','IL/B'], answer:1},
+      {type:'short',prompt:'State the unit of magnetic flux density B.', answer:'tesla (T)'},
+      {type:'mcq',  prompt:'The force F = qvB on a moving charge is maximum when v is … to B.', options:['parallel','anti-parallel','perpendicular','at 45°'], answer:2}
+    ],
+    2: [
+      {type:'short',prompt:'A 0.5 m wire carries 3 A at 90° in a 0.2 T field. Find the force.', answer:'F = BIL = 0.2 × 3 × 0.5 = 0.3 N'},
+      {type:'mcq',  prompt:'A charge moving parallel to B feels a magnetic force of…', options:['maximum','qvB','zero','qE'], answer:2},
+      {type:'mcq',  prompt:'The magnetic force on a moving charge is always … its velocity.', options:['parallel to','perpendicular to','opposite to','independent of'], answer:1}
+    ]
+  }
+};
+
+// Scripted Tier 3 "thesis defense" exchanges (student replies are canned).
+const DEFENSE = {
+  0: [
+    {student:"It assumes all the mass acts at a point, so it fails inside an extended body and for non-spherical mass distributions.",
+     examiner:"Reasonable. Push further — what about very strong fields, say near a compact star?"},
+    {student:"There Newtonian gravity breaks down and you need general relativity; g = GM/r² is only a weak-field approximation.",
+     examiner:"Good. One more — for a valid point mass, what quantity stays fixed as r changes?"},
+    {student:"The product g·r² stays constant — that's just the inverse-square law restated.",
+     examiner:"I've heard enough to reach a verdict."}
+  ],
+  1: [
+    {student:"The point model ignores the physical size of a charged object and any induced charge on nearby conductors.",
+     examiner:"And at the surface of a conductor in equilibrium?"},
+    {student:"The field there is perpendicular to the surface, and the field inside the conductor is zero.",
+     examiner:"Why must the internal field be zero?"},
+    {student:"Because free charges rearrange until they cancel any internal field — otherwise they'd keep moving.",
+     examiner:"Enough. Let me judge."}
+  ],
+  2: [
+    {student:"The magnetic force is F = qvB, so it's zero when v = 0 — only moving charge couples to the field.",
+     examiner:"That raises a puzzle: motion is relative. Whose frame decides?"},
+    {student:"It's frame-dependent — electric and magnetic fields transform into each other between observers; they're one field.",
+     examiner:"Then why does the magnetic force do no work?"},
+    {student:"Because it's always perpendicular to the velocity, so it changes direction but not speed.",
+     examiner:"Good enough for a verdict."}
+  ]
+};
+
+/* ---------- 2. STATE ---------- */
+function freshState(){
+  return {
+    screen: 'splash',
+    currentBand: 1,          // tier-major: whole cohort works one band at a time
+    currentSubtopic: 0,
+    lastSubtopic: null,
+    flowerStage: 0,          // number of fully-cleared bands (0..3)
+    courseComplete: false,
+    pendingUnlock: null,
+    returnFromExit: 'dashboard',
+    progress: SUBTOPICS.map(function(){
+      return { 1:{skills:0,done:false}, 2:{skills:0,done:false}, 3:{defense:'none'} };
+    }),
+    exam: null,              // transient Tier 1/2 loop state
+    chat: null               // transient Tier 3 defense state
+  };
+}
+function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
+
+// A pre-baked "save" so the has-save -> Resume branch is demoable immediately.
+let savedExists = true;
+let saved = (function(){
+  const s = freshState();
+  s.screen = 'dashboard';
+  s.currentBand = 2;
+  s.flowerStage = 1;                         // Tier 1 band already cleared
+  s.progress[0][1] = {skills:3, done:true};
+  s.progress[1][1] = {skills:3, done:true};
+  s.progress[2][1] = {skills:3, done:true};
+  s.progress[1][2] = {skills:1, done:false}; // mid Tier 2
+  s.lastSubtopic = 1;
+  return s;
+})();
+
+let state = freshState();
+
+/* ---------- 3. SMALL HELPERS ---------- */
+function tierShort(b){ return 'Tier ' + b; }
+function skillsN(i){ return SUBTOPICS[i].skills.length; }
+function bandDone(){
+  const b = state.currentBand;
+  return state.progress.filter(function(p){ return b===3 ? p[3].defense==='passed' : p[b].done; }).length;
+}
+function bandsClearedText(){
+  return ['In bud — no tiers cleared','Tier 1 cleared','Tier 2 cleared','Full bloom — all tiers cleared'][state.flowerStage];
+}
+function bandProgressText(){
+  if(state.courseComplete) return 'All tiers complete';
+  return tierShort(state.currentBand) + ' — ' + bandDone() + ' of ' + SUBTOPICS.length + ' subtopics mastered';
+}
+function skillDone(i, band, si){
+  if(band===3) return state.progress[i][3].defense==='passed';
+  return si < state.progress[i][band].skills;
+}
+function bandStatus(i, band){
+  const p = state.progress[i];
+  if(band===3){
+    if(p[3].defense==='passed')    return {label:'Defense passed', cls:'ok'};
+    if(p[3].defense==='sent-back') return {label:'In review', cls:'warn'};
+    return {label:'Not attempted', cls:'muted'};
+  }
+  const m = p[band];
+  if(m.done)     return {label:'Mastered', cls:'ok'};
+  if(m.skills>0) return {label:'In progress', cls:'warn'};
+  return {label:'Not started', cls:'muted'};
+}
+
+/* ---------- 4. ICONS (inline SVG, sage line-art) ---------- */
+function brandMark(){
+  return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<path d="M12 12.5 C 8.6 9.4 8.6 4.8 12 3 C 15.4 4.8 15.4 9.4 12 12.5 Z" fill="#e3ecdd" stroke="#5f7a5a" stroke-width="1.2"/>'
+    + '<path d="M12 12.5 C 8.8 12.8 5 14.6 4.6 19 C 8.6 19 11.4 16.9 12 12.5 Z" fill="#e6ebf1" stroke="#8792ac" stroke-width="1.2"/>'
+    + '<path d="M12 12.5 C 15.2 12.8 19 14.6 19.4 19 C 15.4 19 12.6 16.9 12 12.5 Z" fill="#e6ebf1" stroke="#8792ac" stroke-width="1.2"/>'
+    + '</svg>';
+}
+function dashIcon(){ return '<svg class="ni" viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>'; }
+function curricIcon(){ return '<svg class="ni" viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8"/></svg>'; }
+function exitIcon(){ return '<svg class="ni" viewBox="0 0 20 20"><path d="M12 4H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6"/><path d="M9.5 10H17M14 7l3 3-3 3"/></svg>'; }
+function gearIcon(){ return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>'; }
+function studyIcon(){ return '<svg class="ci" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h5v17H6a2 2 0 0 1-2-2V5Z"/><path d="M20 5a2 2 0 0 0-2-2h-5v17h5a2 2 0 0 0 2-2V5Z"/></svg>'; }
+function assessIcon(){ return '<svg class="ci" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 12l2 2 4-4"/></svg>'; }
+function defenseIcon(){ return '<svg class="ci" viewBox="0 0 24 24"><path d="M4 5h16v10H9l-4 4V5Z"/><path d="M8 9h8M8 11.5h5"/></svg>'; }
+function subIcon(i){
+  if(i===0) return '<svg class="si" viewBox="0 0 32 32"><circle cx="16" cy="16" r="2.6" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="7.5"/><circle cx="16" cy="16" r="12"/></svg>';
+  if(i===1) return '<svg class="si" viewBox="0 0 32 32"><circle cx="16" cy="16" r="3.2"/><path d="M16 4v6M16 22v6M4 16h6M22 16h6M8 8l4 4M20 20l4 4M24 8l-4 4M8 24l4-4"/></svg>';
+  return '<svg class="si" viewBox="0 0 32 32"><path d="M9 6v9a7 7 0 0 0 14 0V6"/><path d="M6 6h6M6 6v4M20 6h6M26 6v4"/></svg>';
+}
+
+/* ---------- 5. FLOWER (line-art botanical, blooms by stage 0..3) ---------- */
+function flowerSVG(stage, size){
+  size = size || 150;
+  const cx = size/2, py = size*0.66, t = stage/3;
+  function petal(angle, len, wid, fill, stroke){
+    const d = 'M0 0 C '+wid+' '+(-len*0.32)+' '+(wid*0.5)+' '+(-len*0.92)+' 0 '+(-len)
+            + ' C '+(-wid*0.5)+' '+(-len*0.92)+' '+(-wid)+' '+(-len*0.32)+' 0 0 Z';
+    return '<path d="'+d+'" transform="translate('+cx+','+py+') rotate('+angle+')" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.5" stroke-linejoin="round"/>';
+  }
+  const INs='#7f8f70', INf=(stage===0?'#e4ecdd':'#eef2ea');
+  const OUTs='#98a3bd', OUTf='rgba(152,163,189,0.30)';
+  const Ls='#6f8468', Lf='rgba(124,150,120,0.32)';
+  const Li=size*0.30, Lo=size*0.40, Ll=size*0.21;
+  const si=5 + t*20, so=18 + t*46;
+  let g = '<line x1="'+cx+'" y1="'+py+'" x2="'+cx+'" y2="'+(size-2)+'" stroke="'+Ls+'" stroke-width="2"/>';
+  // calyx / base leaves (grow with stage)
+  g += petal(114, Ll*(0.6+0.4*t), size*0.10, Lf, Ls) + petal(-114, Ll*(0.6+0.4*t), size*0.10, Lf, Ls);
+  if(stage>=2){ g += petal(146, Ll*0.8, size*0.09, Lf, Ls) + petal(-146, Ll*0.8, size*0.09, Lf, Ls); }
+  // outer petals (open from stage 1)
+  if(stage>=1){ [-2,-1,1,2].forEach(function(m){ g += petal(m*so/2, Lo, size*0.135, OUTf, OUTs); }); }
+  // inner petals (always, splay as it opens)
+  [-1,0,1].forEach(function(m){ g += petal(m*si, Li, size*0.11, INf, INs); });
+  // stamen centre at fuller bloom
+  if(stage>=2){ g += '<circle cx="'+cx+'" cy="'+(py-Li*0.5)+'" r="'+(size*0.035)+'" fill="#d9c98a" stroke="#b9a45f" stroke-width="1"/>'; }
+  return '<svg class="flower" viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'" role="img" aria-label="mastery flower, stage '+stage+' of 3">'+g+'</svg>';
+}
+
+/* ---------- 6. MOCK PERFORMANCE CHART ---------- */
+function chartSVG(){
+  const vals = [35,42,38,55,60,72,78];
+  const w=340, h=120, pad=12, max=100;
+  const step = (w-pad*2)/(vals.length-1);
+  const pts = vals.map(function(v,i){ return [pad+i*step, h-pad-(v/max)*(h-pad*2)]; });
+  const line = pts.map(function(p,i){ return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1); }).join(' ');
+  const area = line + ' L '+pts[pts.length-1][0].toFixed(1)+' '+(h-pad)+' L '+pts[0][0].toFixed(1)+' '+(h-pad)+' Z';
+  let grid = '';
+  [0.25,0.5,0.75].forEach(function(f){ const y=(pad+(h-pad*2)*f).toFixed(1); grid+='<line x1="'+pad+'" y1="'+y+'" x2="'+(w-pad)+'" y2="'+y+'" stroke="#eef1ea"/>'; });
+  const dots = pts.map(function(p){ return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.6" fill="#4f6f52"/>'; }).join('');
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">'
+    + grid + '<line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" stroke="#dfe3da"/>'
+    + '<path d="'+area+'" fill="rgba(79,111,82,0.10)"/>'
+    + '<path d="'+line+'" fill="none" stroke="#4f6f52" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+    + dots + '</svg>';
+}
+
+/* ---------- 7. SHELL + PAGE HEAD ---------- */
+function shell(inner){
+  const active = state.screen==='dashboard' ? 'dashboard' : (state.screen==='exit' ? 'exit' : 'curriculum');
+  return '<div class="app"><aside class="side">'
+    + '<div class="brand">'+brandMark()+'<div><div class="brand-name">Bloom</div><div class="brand-sub">Pathway</div></div></div>'
+    + '<nav class="nav">'
+    +   '<button class="nav-item '+(active==='dashboard'?'active':'')+'" data-action="toDashboard">'+dashIcon()+'<span>Dashboard</span></button>'
+    +   '<button class="nav-item '+(active==='curriculum'?'active':'')+'" data-action="toCurriculum">'+curricIcon()+'<span>Curriculum</span></button>'
+    + '</nav>'
+    + '<div class="side-mastery"><div class="side-cap">Current tier</div><div class="side-tier">'+tierShort(state.currentBand)+'</div>'
+    +   '<div class="xp mini"><div class="xp-fill" style="width:'+Math.round(bandDone()/SUBTOPICS.length*100)+'%"></div></div>'
+    +   '<div class="side-sub">'+bandDone()+' / '+SUBTOPICS.length+' subtopics</div></div>'
+    + '<div class="side-foot">'
+    +   '<button class="nav-item '+(active==='exit'?'active':'')+'" data-action="toExit">'+exitIcon()+'<span>Exit</span></button>'
+    +   '<div class="demo-state">demo state · '+state.screen+'</div>'
+    + '</div></aside>'
+    + '<main class="main">'+inner+'</main></div>';
+}
+function pageHead(title, opts){
+  opts = opts || {};
+  const right = opts.right ? '<div class="ph-right">'+opts.right+'</div>' : '';
+  let left = '<div>';
+  if(opts.crumbs){
+    const parents = opts.crumbs.map(function(c){
+      return '<button class="tcrumb" data-action="'+c.action+'"'+(c.arg!=null?' data-arg="'+c.arg+'"':'')+'>'+c.label+'</button>';
+    }).join('<span class="tsep">›</span>');
+    left += '<div class="trail">'+parents+'<span class="tsep">›</span><span class="tcur">'+title+'</span></div>';
+  }
+  left += '<h1 class="ptitle">'+title+'</h1></div>';
+  return '<header class="pagehead">'+left+right+'</header>';
+}
+
+/* ---------- 8. SCREENS ---------- */
+function splash(){
+  return '<div class="landing"><div class="landing-inner">'
+    + flowerSVG(savedExists ? saved.flowerStage : 1, 120)
+    + '<h1 class="landing-title">Bloom</h1>'
+    + '<p class="landing-sub">An adaptive learning pathway built on Bloom’s taxonomy. Grow a topic from first principles to demonstrated mastery.</p>'
+    + '<div class="landing-actions">'
+    +   '<button class="btn primary lg" data-action="newRun">Start learning</button>'
+    +   '<button class="btn ghost lg" data-action="resume" '+(savedExists?'':'disabled')+'>Resume session</button>'
+    + '</div>'
+    + '<div class="faint small" style="margin-top:20px">Entry point → “Has save?” — Resume opens the saved session; Start begins a new topic.</div>'
+    + '</div></div>';
+}
+
+function topicEntry(){
+  return '<div class="entry">'
+    + '<button class="entry-settings" data-action="noop" aria-label="Account settings">'+gearIcon()+'</button>'
+    + '<div class="entry-inner">'
+    +   '<h1 class="entry-q">What do you want to learn?</h1>'
+    +   '<div class="entry-bar"><input id="topicInput" class="entry-input" placeholder="e.g. Fields in physics" value="Fields in physics" autocomplete="off">'
+    +     '<button class="entry-send" data-action="submitTopic" aria-label="Submit">→</button></div>'
+    +   '<p class="entry-hint">Type anything — the demo loads a hardcoded IB Physics curriculum.</p>'
+    + '</div></div>';
+}
+
+function dashboard(){
+  const last = state.lastSubtopic;
+  const cont = last!=null
+    ? '<div class="big">'+SUBTOPICS[last].name+'</div><div class="muted small">'+bandStatus(last,state.currentBand).label+' · '+tierShort(state.currentBand)+'</div>'
+      + '<div class="actions-row"><button class="btn primary" data-action="selectSubtopic" data-arg="'+last+'">Resume subtopic →</button></div>'
+    : '<div class="big">No subtopic yet</div><div class="muted small">Open the curriculum to begin.</div>'
+      + '<div class="actions-row"><button class="btn primary" data-action="toCurriculum">Open curriculum →</button></div>';
+  return '<div class="page">'
+    + pageHead('Dashboard', {right:'<span class="pill">'+TIER_NAMES[state.currentBand]+'</span>'})
+    + '<div class="dash">'
+    +   '<section class="panel mastery-panel"><div class="cap">Knowledge mastery</div>'
+    +     flowerSVG(state.flowerStage,150)
+    +     '<div class="mastery-label">'+bandsClearedText()+'</div>'
+    +     '<div class="muted small" style="margin-top:2px">'+bandProgressText()+'</div></section>'
+    +   '<section class="panel continue"><div class="cap">Continue learning</div>'+cont+'</section>'
+    +   '<section class="panel wide"><div class="cap">Performance</div>'+chartSVG()+'</section>'
+    + '</div></div>';
+}
+
+function subCard(s, i){
+  const st = bandStatus(i, state.currentBand);
+  const done = st.cls==='ok';
+  const b = state.currentBand;
+  let pct;
+  if(b===3) pct = state.progress[i][3].defense==='passed' ? 100 : (state.progress[i][3].defense==='sent-back' ? 40 : 0);
+  else pct = Math.round(state.progress[i][b].skills / skillsN(i) * 100);
+  const badge = done ? '<span class="check">✓</span>' : '<span class="chip '+st.cls+'">'+st.label+'</span>';
+  return '<button class="subcard '+(done?'is-done':'')+'" data-action="selectSubtopic" data-arg="'+i+'">'
+    + '<div class="subcard-head"><span class="subcard-ico">'+subIcon(i)+'</span>'+badge+'</div>'
+    + '<div class="subcard-name">'+s.name+'</div>'
+    + '<div class="subcard-meta">'+skillsN(i)+' skills · '+tierShort(b)+'</div>'
+    + '<div class="mini-bar"><div style="width:'+pct+'%"></div></div>'
+    + '</button>';
+}
+
+function curriculum(){
+  const cards = SUBTOPICS.map(function(s,i){ return subCard(s,i); }).join('');
+  const pct = Math.round(bandDone()/SUBTOPICS.length*100);
+  return '<div class="page">'
+    + pageHead('Curriculum', {right:'<span class="pill">'+TIER_NAMES[state.currentBand]+'</span>'})
+    + (state.courseComplete ? '<div class="banner">Full bloom — all three tiers cleared across every subtopic.</div>' : '')
+    + '<div class="subgrid">'+cards+'</div>'
+    + '<section class="panel bloom-panel"><div class="bloom-left">'
+    +   '<div class="cap">'+tierShort(state.currentBand)+' mastery</div>'
+    +   '<div class="xp"><div class="xp-fill" style="width:'+pct+'%"></div></div>'
+    +   '<div class="muted small">'+bandProgressText()+'</div></div>'
+    +   '<div class="bloom-right">'+flowerSVG(state.flowerStage,150)+'</div>'
+    + '</section></div>';
+}
+
+function subtopic(){
+  const i = state.currentSubtopic, s = SUBTOPICS[i], t3 = state.currentBand===3;
+  return '<div class="page">'
+    + pageHead(s.name, {crumbs:[{label:'Curriculum',action:'toCurriculum'}], right:'<span class="pill">'+TIER_NAMES[state.currentBand]+'</span>'})
+    + '<div class="subtopic-hero panel"><div class="subtopic-ico-lg">'+subIcon(i)+'</div>'
+    +   '<div><h2>'+s.name+'</h2><div class="muted small">Skills · '+s.skills.join('  ·  ')+'</div></div></div>'
+    + '<div class="choice">'
+    +   '<button class="choice-card" data-action="toStudy"><div class="choice-ico">'+studyIcon()+'</div>'
+    +     '<div class="choice-t">Study</div><div class="choice-d">Read the '+tierShort(state.currentBand)+' material for this subtopic.</div></button>'
+    +   '<button class="choice-card" data-action="toExam"><div class="choice-ico">'+(t3?defenseIcon():assessIcon())+'</div>'
+    +     '<div class="choice-t">'+(t3?'Defense':'Assessment')+'</div><div class="choice-d">'
+    +     (t3?'Defend your understanding to an examiner.':'Answer questions until you master the skills.')+'</div></button>'
+    + '</div></div>';
+}
+
+function study(){
+  const s = SUBTOPICS[state.currentSubtopic];
+  const recap = s.skills.map(function(sk){ return '<span class="skill">'+sk+'</span>'; }).join('');
+  return '<div class="page">'
+    + pageHead('Study', {crumbs:[{label:'Curriculum',action:'toCurriculum'},{label:s.name,action:'toSubtopic'}], right:'<span class="pill">'+TIER_NAMES[state.currentBand]+'</span>'})
+    + '<article class="lesson panel"><div class="lesson-tier">'+TIER_NAMES[state.currentBand]+'</div>'
+    +   '<h2>'+s.name+'</h2><p>'+s.study[state.currentBand]+'</p>'
+    +   '<div class="cap" style="margin-top:20px">Skills covered</div><div class="recap">'+recap+'</div>'
+    +   '<div class="assistant"><input placeholder="Ask the assistant about this topic…" disabled><button class="btn ghost" disabled>Ask</button></div>'
+    + '</article>'
+    + '<div class="actions-row"><button class="btn primary" data-action="toExam">Start assessment →</button></div>'
+    + '</div>';
+}
+
+/* ----- Exam mode: engine chosen by band (system-read, not a user choice) ----- */
+function examScreen(){ return state.currentBand===3 ? defenseScreen() : loopScreen(); }
+
+function loopScreen(){
+  const i = state.currentSubtopic, band = state.currentBand, s = SUBTOPICS[i], p = state.progress[i][band];
+  if(p.done) return masteredCard();
+  const idx = p.skills, q = QUESTIONS[i][band][idx], pct = Math.round(p.skills / skillsN(i) * 100);
+  const chips = s.skills.map(function(sk,si){ return '<span class="skill '+(si<p.skills?'done':'')+'">'+(si<p.skills?'✓ ':'')+sk+'</span>'; }).join('');
+  const body = q.type==='mcq' ? mcqOptions(q) : shortAnswer();
+  return '<div class="page">'
+    + pageHead('Assessment', {crumbs:[{label:'Curriculum',action:'toCurriculum'},{label:s.name,action:'toSubtopic'}], right:'<span class="pill">'+TIER_NAMES[band]+'</span>'})
+    + '<section class="panel">'
+    +   '<div class="mastery"><div class="cap">Mastery · '+p.skills+' / '+skillsN(i)+' skills</div>'
+    +     '<div class="bar"><div class="fill" style="width:'+pct+'%"></div></div><div class="skills">'+chips+'</div></div>'
+    +   '<div class="q-tag">Targeting · '+s.skills[idx]+'</div><div class="q-prompt">'+q.prompt+'</div>'+body
+    +   gradeArea(q)
+    + '</section></div>';
+}
+function mcqOptions(q){
+  const submitted = state.exam.submitted, chosen = state.exam.chosen;
+  const opts = q.options.map(function(o,oi){
+    let cls='opt';
+    if(submitted){ if(oi===q.answer) cls+=' correct'; else if(oi===chosen) cls+=' wrong'; }
+    else if(oi===chosen) cls+=' sel';
+    return '<button class="'+cls+'" data-action="selectMcq" data-arg="'+oi+'" '+(submitted?'disabled':'')+'>'
+      + String.fromCharCode(97+oi)+') '+o+'</button>';
+  }).join('');
+  return '<div class="opts">'+opts+'</div>';
+}
+function shortAnswer(){
+  return '<textarea class="area" placeholder="Type your answer… (demo ignores it)" '+(state.exam.submitted?'disabled':'')+'></textarea>';
+}
+function gradeArea(q){
+  if(!state.exam.submitted){
+    return '<div class="actions-row"><button class="btn primary" data-action="submitAnswer">Submit answer →</button></div>';
+  }
+  const model = q.type==='mcq' ? (String.fromCharCode(97+q.answer)+') '+q.options[q.answer]) : q.answer;
+  return '<div class="graded"><div class="answer"><b>Model answer:</b> '+model+'</div>'
+    + '<div class="cap">Grade — faked, you steer</div>'
+    + '<div class="actions-row" style="margin-top:10px">'
+    +   '<button class="btn ok" data-action="gradeCorrect">✓ Mark correct</button>'
+    +   '<button class="btn danger" data-action="gradeIncorrect">✗ Mark incorrect</button>'
+    +   '<button class="btn ghost" data-action="coinFlip">Coin-flip</button>'
+    + '</div></div>';
+}
+function masteredCard(){
+  const s = SUBTOPICS[state.currentSubtopic];
+  return '<div class="page">'
+    + pageHead('Assessment', {crumbs:[{label:'Curriculum',action:'toCurriculum'},{label:s.name,action:'toSubtopic'}], right:'<span class="pill">'+TIER_NAMES[state.currentBand]+'</span>'})
+    + '<section class="panel" style="text-align:center">'
+    +   '<div class="check big-check">✓</div>'
+    +   '<h2 style="font-family:var(--serif); margin:12px 0 4px">Mastered at '+tierShort(state.currentBand)+'</h2>'
+    +   '<p class="muted">Every skill in this subtopic is mastered at this tier.</p>'
+    +   '<div class="skills" style="justify-content:center; margin-top:14px">'+s.skills.map(function(sk){return '<span class="skill done">✓ '+sk+'</span>';}).join('')+'</div>'
+    +   '<div class="actions-row" style="justify-content:center"><button class="btn primary" data-action="toCurriculum">Back to curriculum →</button></div>'
+    + '</section></div>';
+}
+
+function defenseScreen(){
+  const i = state.currentSubtopic, s = SUBTOPICS[i], script = DEFENSE[i];
+  const log = state.chat.log.map(function(m){
+    return '<div class="msg '+m.who+'"><div class="who">'+(m.who==='ex'?'Examiner':'You')+'</div><div class="bubble">'+m.text+'</div></div>';
+  }).join('');
+  let controls;
+  if(state.chat.step < script.length){
+    controls = '<button class="reply-btn" data-action="sendReply">'+script[state.chat.step].student+'</button>'
+      + '<div class="faint small" style="margin-top:8px">Scripted reply — click to respond.</div>';
+  } else {
+    controls = '<div class="verdict"><div class="cap">Examiner’s verdict — you steer</div><div class="actions-row" style="margin-top:8px">'
+      + '<button class="btn ok" data-action="defensePass">Pass — grant mastery</button>'
+      + '<button class="btn danger" data-action="defenseSendBack">Send back to review</button>'
+      + '</div><div class="faint small" style="margin-top:8px">No meter here — Tier 3 is pass / fail.</div></div>';
+  }
+  return '<div class="page">'
+    + pageHead('Defense', {crumbs:[{label:'Curriculum',action:'toCurriculum'},{label:s.name,action:'toSubtopic'}], right:'<span class="pill slate">Thesis defense</span>'})
+    + '<section class="panel"><div class="defense-lead muted small">'+TIER_NAMES[3]+' — the examiner will press you on <b>'+s.name+'</b>.</div>'
+    +   '<div class="chat">'+log+'</div>'+controls
+    + '</section></div>';
+}
+
+function progression(){
+  const heading = state.courseComplete ? 'Full bloom achieved' : tierShort(state.currentBand)+' complete';
+  const msg = state.courseComplete
+    ? 'Every subtopic has cleared all three tiers. The flower is in full bloom.'
+    : 'Every subtopic has cleared '+tierShort(state.currentBand)+'. '+tierShort(state.pendingUnlock)+' — '+TIER_NAMES[state.pendingUnlock].split('·')[1].trim()+' — is now unlocked.';
+  return '<div class="page"><div class="prog">'
+    + flowerSVG(state.flowerStage,190)
+    + '<h1 class="ptitle" style="margin-top:14px">'+heading+'</h1>'
+    + '<p class="prog-sub">'+msg+'</p>'
+    + '<button class="btn primary lg" data-action="advanceBand">'+(state.courseComplete?'Return to curriculum':'Continue to '+tierShort(state.pendingUnlock)+' →')+'</button>'
+    + '</div></div>';
+}
+
+function exit(){
+  return '<div class="page"><div class="exit-panel panel">'
+    + '<h2 style="font-family:var(--serif); font-size:22px; margin-bottom:8px">Save & exit</h2>'
+    + '<p class="muted" style="margin:0 0 20px">Your progress will be saved. You can resume this session from the splash screen.</p>'
+    + '<div class="actions-row" style="justify-content:center; margin:0">'
+    +   '<button class="btn primary" data-action="saveQuit">Save & quit</button>'
+    +   '<button class="btn ghost" data-action="cancelExit">Cancel</button>'
+    + '</div></div></div>';
+}
+
+const SCREENS = {
+  splash: splash, topicEntry: topicEntry, dashboard: dashboard, curriculum: curriculum,
+  subtopic: subtopic, study: study, exam: examScreen, progression: progression, exit: exit
+};
+
+/* ---------- 9. PROGRESSION LOGIC ---------- */
+function completeBandCheck(){
+  const b = state.currentBand;
+  const allDone = state.progress.every(function(p){ return b===3 ? p[3].defense==='passed' : p[b].done; });
+  if(allDone){
+    state.flowerStage = b;                    // cleared bands == band number
+    if(b < 3){ state.pendingUnlock = b+1; }
+    else { state.courseComplete = true; state.pendingUnlock = null; }
+    go('progression');
+  } else {
+    go('curriculum');
+  }
+}
+
+/* ---------- 10. ACTIONS (state transitions) ---------- */
+const actions = {
+  newRun:  function(){ state = freshState(); go('topicEntry'); },
+  resume:  function(){ if(!savedExists) return; state = deepCopy(saved); go('dashboard'); },
+  noop:    function(){ toast('Account settings — demo only'); },
+
+  submitTopic: function(){ go('dashboard'); },   // input ignored; curriculum is hardcoded
+
+  toDashboard:  function(){ go('dashboard'); },
+  toCurriculum: function(){ go('curriculum'); },
+  toSubtopic:   function(){ go('subtopic'); },
+  toStudy:      function(){ go('study'); },
+  selectSubtopic: function(arg){ state.currentSubtopic = +arg; go('subtopic'); },
+
+  toExam: function(){
+    const i = state.currentSubtopic, b = state.currentBand;
+    if(b===3){ state.chat = { step:0, log:[{who:'ex', text:SUBTOPICS[i].defenseOpener}] }; }
+    else     { state.exam = { submitted:false, chosen:null }; }
+    go('exam');
+  },
+
+  selectMcq:    function(arg){ if(!state.exam.submitted){ state.exam.chosen = +arg; render(); } },
+  submitAnswer: function(){ state.exam.submitted = true; render(); },
+  gradeCorrect: function(){
+    const i = state.currentSubtopic, b = state.currentBand, p = state.progress[i][b];
+    p.skills = Math.min(skillsN(i), p.skills + 1);
+    if(p.skills >= skillsN(i)){
+      p.done = true; state.lastSubtopic = i;
+      toast('Subtopic mastered — ' + tierShort(b));
+      return completeBandCheck();
+    }
+    toast('Skill mastered · ' + p.skills + ' / ' + skillsN(i));
+    state.exam.submitted = false; state.exam.chosen = null; render();
+  },
+  gradeIncorrect: function(){
+    toast('Marked incorrect — keep practising');
+    state.exam.submitted = false; state.exam.chosen = null; render();
+  },
+  coinFlip: function(){ (Math.random() < 0.5 ? actions.gradeCorrect : actions.gradeIncorrect)(); },
+
+  sendReply: function(){
+    const t = DEFENSE[state.currentSubtopic][state.chat.step];
+    state.chat.log.push({who:'me', text:t.student});
+    state.chat.log.push({who:'ex', text:t.examiner});
+    state.chat.step++;
+    render();
+  },
+  defensePass: function(){
+    const i = state.currentSubtopic;
+    state.progress[i][3].defense = 'passed'; state.lastSubtopic = i;
+    toast('Defense passed — mastery granted');
+    completeBandCheck();
+  },
+  defenseSendBack: function(){
+    state.progress[state.currentSubtopic][3].defense = 'sent-back';
+    toast('Sent back to review');
+    go('study');
+  },
+
+  advanceBand: function(){
+    if(state.pendingUnlock){ state.currentBand = state.pendingUnlock; state.pendingUnlock = null; }
+    go('curriculum');
+  },
+
+  toExit:     function(){ state.returnFromExit = state.screen; go('exit'); },
+  cancelExit: function(){ go(state.returnFromExit || 'dashboard'); },
+  saveQuit:   function(){ saved = deepCopy(state); savedExists = true; toast('Progress saved'); go('splash'); }
+};
+
+/* ---------- 11. RENDER / ROUTER ---------- */
+const appEl = document.getElementById('app');
+const toastEl = document.getElementById('toast');
+
+function go(screen){ state.screen = screen; render(); }
+
+function render(){
+  const fullScreen = (state.screen==='splash' || state.screen==='topicEntry');
+  const inner = (SCREENS[state.screen] || splash)();
+  appEl.innerHTML = fullScreen ? inner : shell(inner);
+  const input = document.getElementById('topicInput');
+  if(input){
+    input.focus();
+    input.addEventListener('keydown', function(e){ if(e.key==='Enter') actions.submitTopic(); });
+  }
+}
+
+let toastTimer = null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1900);
+}
+
+// Single delegated click handler = the whole state machine's edges.
+appEl.addEventListener('click', function(e){
+  const t = e.target.closest('[data-action]');
+  if(!t || t.disabled) return;
+  const fn = actions[t.dataset.action];
+  if(fn) fn(t.dataset.arg);
+});
+
+render();
+</script>
+</body>
+</html>
