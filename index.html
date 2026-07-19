@@ -787,7 +787,67 @@ const actions = {
   resume:  function(){ if(!savedExists) return; state = deepCopy(saved); go('dashboard'); },
   noop:    function(){ toast('Account settings — demo only'); },
 
-  submitTopic: function(){ go('dashboard'); },   // input ignored; curriculum is hardcoded
+  // submitTopic: function(){ go('dashboard'); },   // input ignored; curriculum is hardcoded -> WELL WE REPLACE THIS NOW
+
+  //WHERE WE ATTACH THE CURRICULUM GENERATOR BACKEND LOGIC TO THE FRONTEND UPON WRITING A TOPIC QUERY
+  submitTopic: async function() {
+    const inputEl = document.getElementById('topicInput');
+    const topicText = inputEl ? inputEl.value.trim() : "";
+    
+    if (!topicText) {
+      toast("Please enter a topic to begin.");
+      return;
+    }
+
+    toast("Generating your custom curriculum...");
+
+    try {
+      // 1. Hit your local FastAPI endpoint
+      const response = await fetch('http://127.0.0.1:8000/api/curriculum', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ topic: topicText })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const backendData = await response.json();
+      console.log("Curriculum successfully generated:", backendData);
+
+      // 2. Map the incoming JSON to our application state structure
+      // We read the dynamic subtopics and skills directly from your engine payload
+      SUBTOPICS.length = 0; // Clear the hardcoded physics array
+      
+      backendData.subtopics.forEach(sub => {
+        SUBTOPICS.push({
+          name: sub.name,
+          skills: sub.skills.map(s => s.name),
+          study: {
+            1: `Welcome to Tier 1 details for ${sub.name}. Let's break down the following core skills: ${sub.skills.map(s => s.name).join(', ')}. Key metric: ${sub.skills[0]?.tier_1_metric || 'Comprehension'}.`,
+            2: `Moving to Tier 2 application metrics for ${sub.name}. Target focus: ${sub.skills.map(s => s.tier_2_metric).join(' | ')}.`,
+            3: `Synthesis defense for ${sub.name}. Ready to defend your advanced domain application metrics?`
+          },
+          defenseOpener: `You've completed the baseline skill tracks for ${sub.name}. Let's test your overall synthesis limits.`
+        });
+      });
+
+      // 3. Reset the state tracker for the new custom topic
+      state = freshState();
+      state.screen = 'dashboard';
+      savedExists = false; // Override the pre-baked physics save file
+
+      // 4. Fire the view renderer
+      render();
+
+    } catch (error) {
+      console.error("Backend connection failure:", error);
+      alert("Could not connect to the curriculum server. Make sure your Uvicorn server is running locally on port 8000!");
+    }
+  },
 
   toDashboard:  function(){ go('dashboard'); },
   toCurriculum: function(){ go('curriculum'); },
