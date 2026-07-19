@@ -31,5 +31,10 @@ async def create_curriculum(request: TopicRequest):
     # 2. Parse the string into a Python dictionary
     curriculum_data = json.loads(raw_json_string)
     
-    # 3. FastAPI automatically serializes this dictionary back into a clean JSON response
-    return curriculum_data
+    # 3. BACKGROUND WRITE: Save the dictionary to a local file for debugging --> THIS IS WHERE A FILE NAMED CURRENT_CURRICULUM.JSON WILL APPEAR IN THE WORKSPACE WITH THE CURRENT CURRICULUM
+    # Using "w" mode means it will overwrite the file every time a new topic is generated
+    with open("current_curriculum.json", "w", encoding="utf-8") as f:
+        json.dump(curriculum_data, f, indent=4)
+    
+    # 4. FastAPI automatically serializes this dictionary back into a clean JSON response
+    return curriculum_data  
