@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Start</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <!-- ============ Splash / entry point ("Has a save?") ============ -->
+  <div class="landing">
+    <div class="landing-inner">
+
+      <!-- The flower reflects saved progress. A small script fills this slot. -->
+      <div id="landing-flower"></div>
+
+      <h1 class="landing-title">Bloom</h1>
+      <p class="landing-sub">An adaptive learning pathway built on Bloom's taxonomy. Grow a topic from first principles
+        to demonstrated mastery.</p>
+
+      <!-- Two paths: start fresh (a button, because it resets progress first),
+           or resume the saved session (an ordinary link to the dashboard). -->
+      <div class="landing-actions">
+        <button class="btn primary lg" id="start-btn">Start learning</button>
+        <a class="btn ghost lg" href="dashboard.html">Resume session</a>
+      </div>
+
+      <div class="faint small" style="margin-top:20px">Entry point → "Has a save?" — Resume opens the saved session;
+        Start begins a new topic.</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, and drawing helpers -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* On the very first visit there is no save yet. We seed the demo save so
+       the "Resume" path immediately shows some progress. */
+    try {
+      if (localStorage.getItem(STORAGE_KEY) === null) { save_progress(make_demo_progress()); }
+    } catch (error) { /* localStorage unavailable — the app still works, just without persistence */ }
+
+
+    /* Draw the flower at whatever stage the saved progress is on. */
+    const progress = load_progress();
+    document.getElementById('landing-flower').innerHTML = flower_svg(progress.flower_stage, 120);
+
+
+    /* "Start learning" wipes progress back to a fresh start, then goes to the
+       topic-entry page. */
+    document.getElementById('start-btn').addEventListener('click', function () {
+      save_progress(make_fresh_progress());
+      window.location.href = 'topic.html';
+    });
+  </script>
+</body>
+
+</html>

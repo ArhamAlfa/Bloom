@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Curriculum</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: the curriculum ================= -->
+    <main class="main">
+
+      <header class="pagehead">
+        <div>
+          <h1 class="ptitle">Curriculum</h1>
+        </div>
+        <div class="ph-right"><span class="pill" id="tier-pill"></span></div>
+      </header>
+
+      <!-- A banner appears here once every tier is cleared. -->
+      <div id="course-complete-banner"></div>
+
+      <!-- The subtopic cards are cloned into here from the template below. -->
+      <div class="subgrid" id="subgrid"></div>
+
+      <!-- The tier progress bar and the flower. -->
+      <section class="panel bloom-panel">
+        <div class="bloom-left">
+          <div class="cap" id="bloom-cap"></div>
+          <div class="xp">
+            <div class="xp-fill" id="bloom-xp"></div>
+          </div>
+          <div class="muted small" id="bloom-progress"></div>
+        </div>
+        <div class="bloom-right" id="bloom-flower"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- One subtopic card. We clone this once per subtopic and fill the blanks. -->
+  <template id="subcard-template">
+    <a class="subcard">
+      <div class="subcard-head">
+        <span class="subcard-ico"></span>
+        <span class="subcard-badge"></span>
+      </div>
+      <div class="subcard-name"></div>
+      <div class="subcard-meta"></div>
+      <div class="mini-bar">
+        <div class="mini-fill"></div>
+      </div>
+    </a>
+  </template>
+
+
+  <!-- Shared content, progress, helpers, sidebar, and the exam bank (for the
+       "skills to master" count used by each card's progress bar). -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* Load progress and fill the sidebar (Curriculum tab active). */
+    const progress = load_progress();
+    fill_sidebar('curriculum', progress, null, null);
+    document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
+
+
+    /* Show the "full bloom" banner once the whole course is complete. */
+    if (progress.course_complete) {
+      document.getElementById('course-complete-banner').innerHTML =
+        '<div class="banner">Full bloom — all three tiers cleared across every subtopic.</div>';
+    }
+
+
+    /* Build one card per subtopic by cloning the template. */
+    const card_grid = document.getElementById('subgrid');
+    const card_template = document.getElementById('subcard-template');
+
+    SUBTOPICS.forEach(function (subtopic, subtopic_index) {
+      const status = get_subtopic_status(progress, subtopic_index, progress.current_tier);
+      const is_mastered = (status.css_class === 'ok');
+
+      // How full the little progress bar on the card should be: the average
+      // BKT confidence across this subtopic's skills.
+      const percent = subtopic_mastery_percent(progress, subtopic_index, progress.current_tier);
+
+      // Clone the template and fill in this subtopic's details.
+      const card_node = card_template.content.cloneNode(true);
+      card_node.querySelector('.subcard').href = 'subtopic.html?i=' + subtopic_index;
+      if (is_mastered) card_node.querySelector('.subcard').classList.add('is-done');
+      card_node.querySelector('.subcard-ico').innerHTML = subtopic_icon_svg(subtopic_index);
+      card_node.querySelector('.subcard-badge').innerHTML = is_mastered
+        ? '<span class="check">✓</span>'
+        : '<span class="chip ' + status.css_class + '">' + status.label + '</span>';
+      card_node.querySelector('.subcard-name').textContent = subtopic.name;
+      card_node.querySelector('.subcard-meta').textContent = subtopic.skills.length + ' skills · Tier ' + progress.current_tier;
+      card_node.querySelector('.mini-fill').style.width = percent + '%';
+      card_grid.appendChild(card_node);
+    });
+
+
+    /* Fill the tier progress bar and the flower. */
+    const tier_percent = Math.round(count_subtopics_cleared(progress) / SUBTOPICS.length * 100);
+    document.getElementById('bloom-cap').textContent = 'Tier ' + progress.current_tier + ' mastery';
+    document.getElementById('bloom-xp').style.width = tier_percent + '%';
+    document.getElementById('bloom-progress').textContent = tier_progress_summary(progress);
+    document.getElementById('bloom-flower').innerHTML = flower_svg(progress.flower_stage, 150);
+  </script>
+</body>
+
+</html>

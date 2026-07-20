@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — What do you want to learn?</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <!-- ============ Topic entry ============ -->
+  <div class="entry">
+
+    <!-- Decorative account-settings button (not wired up in the demo). -->
+    <button class="entry-settings" id="settings-btn" type="button" aria-label="Account settings"></button>
+
+    <div class="entry-inner">
+      <h1 class="entry-q">What do you want to learn?</h1>
+
+      <!-- A normal form. On submit we ignore the text and load the demo course. -->
+      <form class="entry-bar" id="topic-form">
+        <input class="entry-input" id="topic-input" placeholder="e.g. Fields in physics" autocomplete="off">
+        <button class="entry-send" type="submit" aria-label="Submit">→</button>
+      </form>
+
+      <p class="entry-hint">Type anything — the demo loads the hardcoded "Fields" curriculum from the schema fixtures.
+      </p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content + helpers -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/render-helpers.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* Draw the settings icon and pre-fill the box with the schema's example query. */
+    document.getElementById('settings-btn').innerHTML = gear_icon_svg();
+    document.getElementById('topic-input').value = USER_QUERY;
+
+
+    /* Submitting the form moves on to the dashboard. We do not read the text —
+       the curriculum is fixed for this demo. */
+    document.getElementById('topic-form').addEventListener('submit', function (submit_event) {
+      submit_event.preventDefault();
+      window.location.href = 'dashboard.html';
+    });
+  </script>
+</body>
+
+</html>
