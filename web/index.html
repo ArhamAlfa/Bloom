@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Start</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <!-- ============ Intro overlay ============
+       Covers the page while the squiggle draws itself and turns into the
+       flower. It removes itself when the animation is done. -->
+  <div id="intro-view">
+    <div class="intro-stack">
+
+      <!-- The morphing line. Its `d` is set and animated from JavaScript. -->
+      <svg id="intro-line-svg" viewBox="0 0 150 150" style="overflow:visible">
+        <path id="intro-line" class="is-drawing"></path>
+      </svg>
+
+      <!-- The flower, dropped in once the stalk has grown. -->
+      <div class="intro-flower" id="intro-flower"></div>
+    </div>
+  </div>
+
+
+  <!-- ============ Landing: the one thing to do here is name a topic ============ -->
+  <div class="landing">
+    <div class="landing-inner">
+
+      <div id="landing-flower"></div>
+
+      <h1 class="landing-title">Bloom</h1>
+      <p class="landing-sub">An adaptive learning pathway built on Bloom's taxonomy. Grow a topic from first
+        principles to demonstrated mastery.</p>
+
+      <form class="entry-bar" id="topic-form">
+        <input class="entry-input" id="topic-input" placeholder="What do you want to learn?" autocomplete="off">
+        <button class="entry-send" type="submit" aria-label="Start learning">→</button>
+      </form>
+
+      <p class="entry-hint">Type anything — the demo loads the hardcoded "Fields" curriculum from the schema fixtures.
+      </p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, and drawing helpers -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* ============================================================
+       The landing page.
+
+       This demo has no accounts and no saved sessions, so there is nothing to
+       resume — naming a topic simply starts a clean run.
+       ============================================================ */
+
+    const INTRO_FLOWER_SIZE = 150;
+    const LANDING_FLOWER_SIZE = 120;
+
+    document.getElementById('landing-flower').innerHTML = flower_svg(0, LANDING_FLOWER_SIZE);
+    document.getElementById('topic-input').value = USER_QUERY;
+
+
+    /* Naming a topic wipes any leftover progress and opens the dashboard. */
+    document.getElementById('topic-form').addEventListener('submit', function (submit_event) {
+      submit_event.preventDefault();
+
+      save_progress(make_fresh_progress());
+      window.location.href = 'dashboard.html';
+    });
+
+
+    /* ============================================================
+       The intro animation.
+
+       The line is stored as a flat list of numbers — x, y, x, y … — because
+       that makes it easy to blend one shape into another: we just slide every
+       number from where it is to where it needs to be.
+
+       Three shapes, in order:
+         1. the squiggle   (chaotic, drawn on load)
+         2. gathered       (everything collapsed to the ground)
+         3. the stalk      (a straight line grown back up)
+
+       The stalk lands exactly where the flower's stem is drawn, so when the
+       flower fades in it looks like it sprouted from the line.
+       ============================================================ */
+
+    // The chaotic opening shape: one move-to, then nine curve segments.
+    const SQUIGGLE_SHAPE = [
+      15, 65,
+      15, 35, 28, 35, 24.7, 70,
+      21.5, 85, 40.9, 80, 37.7, 45,
+      34.5, 35, 47.5, 35, 44.2, 75,
+      40.9, 90, 60.4, 85, 57.2, 40,
+      53.9, 25, 79.9, 25, 76.6, 65,
+      73.4, 85, 99.4, 85, 92.9, 40,
+      86.4, 20, 118.8, 25, 115.6, 70,
+      112.3, 90, 131.8, 80, 128.6, 45,
+      125.3, 30, 138.3, 35, 135.1, 75
+    ];
+
+    // Where the flower's stem sits inside a 150x150 flower (see flower_svg).
+    const STEM_CENTRE_X = INTRO_FLOWER_SIZE / 2;                 // 75
+    const STEM_BOTTOM_Y = INTRO_FLOWER_SIZE - 2;                 // 148
+    const STEM_TOP_Y = INTRO_FLOWER_SIZE * 0.66;                 // 99
+
+    // How long each stage of the intro takes, in milliseconds.
+    const COLLAPSE_MS = 450;
+    const GROW_MS = 550;
+    const HOLD_BEFORE_FADE_MS = 700;
+    const FADE_MS = 400;
+
+    const intro_view = document.getElementById('intro-view');
+    const intro_line = document.getElementById('intro-line');
+    const intro_flower = document.getElementById('intro-flower');
+
+
+    /* Build a shape where every point sits on the same spot. */
+    function make_gathered_shape(x, y) {
+      const shape = [];
+
+      for (let index = 0; index < SQUIGGLE_SHAPE.length; index = index + 2) {
+        shape.push(x, y);
+      }
+
+      return shape;
+    }
+
+
+    /* Build a shape spread evenly along a vertical line, bottom to top. */
+    function make_stalk_shape(x, bottom_y, top_y) {
+      const shape = [];
+      const point_count = SQUIGGLE_SHAPE.length / 2;
+
+      for (let index = 0; index < point_count; index = index + 1) {
+        const fraction_up = index / (point_count - 1);
+        const y = bottom_y + (top_y - bottom_y) * fraction_up;
+
+        shape.push(x, y);
+      }
+
+      return shape;
+    }
+
+
+    /* Turn a flat list of numbers into an SVG path: one move-to, then curves. */
+    function shape_to_path(shape) {
+      let path_text = 'M ' + shape[0].toFixed(1) + ' ' + shape[1].toFixed(1);
+
+      for (let index = 2; index < shape.length; index = index + 6) {
+        const first_control_x = shape[index].toFixed(1);
+        const first_control_y = shape[index + 1].toFixed(1);
+        const second_control_x = shape[index + 2].toFixed(1);
+        const second_control_y = shape[index + 3].toFixed(1);
+        const end_x = shape[index + 4].toFixed(1);
+        const end_y = shape[index + 5].toFixed(1);
+
+        path_text = path_text
+          + ' C ' + first_control_x + ' ' + first_control_y
+          + ', ' + second_control_x + ' ' + second_control_y
+          + ', ' + end_x + ' ' + end_y;
+      }
+
+      return path_text;
+    }
+
+
+    /* Mix two shapes together. A fraction of 0 gives the first shape, 1 gives
+       the second, and anything between gives a shape part way across. */
+    function blend_shapes(from_shape, to_shape, fraction) {
+      const blended = [];
+
+      for (let index = 0; index < from_shape.length; index = index + 1) {
+        const from_value = from_shape[index];
+        const to_value = to_shape[index];
+
+        blended.push(from_value + (to_value - from_value) * fraction);
+      }
+
+      return blended;
+    }
+
+
+    /* Ease the movement so it starts and finishes gently. */
+    function ease_in_out(fraction) {
+      if (fraction < 0.5) {
+        return 2 * fraction * fraction;
+      }
+      return 1 - Math.pow(-2 * fraction + 2, 2) / 2;
+    }
+
+
+    /* Slide the line from one shape to another, then run `on_finished`. */
+    function morph_line(from_shape, to_shape, duration_ms, on_finished) {
+      const start_time = performance.now();
+
+      function draw_one_frame(now) {
+        let fraction = (now - start_time) / duration_ms;
+
+        if (fraction > 1) {
+          fraction = 1;
+        }
+
+        const blended_shape = blend_shapes(from_shape, to_shape, ease_in_out(fraction));
+        intro_line.setAttribute('d', shape_to_path(blended_shape));
+
+        if (fraction < 1) {
+          requestAnimationFrame(draw_one_frame);
+          return;
+        }
+
+        if (on_finished) {
+          on_finished();
+        }
+      }
+
+      requestAnimationFrame(draw_one_frame);
+    }
+
+
+    /* Fade the overlay away and take it out of the page. */
+    function finish_intro() {
+      intro_view.classList.add('is-fading');
+
+      setTimeout(function () {
+        intro_view.remove();
+      }, FADE_MS);
+    }
+
+
+    /* Run the whole sequence: collapse, grow, bloom, leave. */
+    function run_intro_after_drawing() {
+      const gathered_shape = make_gathered_shape(STEM_CENTRE_X, STEM_BOTTOM_Y);
+      const stalk_shape = make_stalk_shape(STEM_CENTRE_X, STEM_BOTTOM_Y, STEM_TOP_Y);
+
+      // The dashes were only there to draw the squiggle on. Clear them, or they
+      // will chop up the line while it moves.
+      intro_line.classList.remove('is-drawing');
+      intro_line.style.strokeDasharray = 'none';
+      intro_line.style.strokeDashoffset = '0';
+
+      morph_line(SQUIGGLE_SHAPE, gathered_shape, COLLAPSE_MS, function () {
+        morph_line(gathered_shape, stalk_shape, GROW_MS, function () {
+
+          // The stalk is in place, so the flower can sprout from it.
+          intro_flower.classList.add('is-visible');
+          setTimeout(finish_intro, HOLD_BEFORE_FADE_MS);
+        });
+      });
+    }
+
+
+    /* Start the intro, unless the reader has asked for less motion. */
+    function start_intro() {
+      const wants_less_motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (wants_less_motion) {
+        intro_view.remove();
+        return;
+      }
+
+      intro_flower.innerHTML = flower_svg(0, INTRO_FLOWER_SIZE);
+      intro_line.setAttribute('d', shape_to_path(SQUIGGLE_SHAPE));
+
+      // The squiggle draws itself in CSS; we carry on once that finishes.
+      intro_line.addEventListener('animationend', run_intro_after_drawing, { once: true });
+    }
+
+    start_intro();
+  </script>
+</body>
+
+</html>

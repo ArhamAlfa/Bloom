@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Subtopic</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: the subtopic hub ================= -->
+    <main class="main">
+
+      <header class="pagehead">
+        <div>
+          <div class="trail">
+            <a class="tcrumb" href="curriculum.html">Curriculum</a>
+            <span class="tsep">›</span>
+            <span class="tcur" id="crumb-name"></span>
+          </div>
+          <h1 class="ptitle" id="subtopic-title"></h1>
+        </div>
+        <div class="ph-right"><span class="pill" id="tier-pill"></span></div>
+      </header>
+
+      <!-- The subtopic at a glance -->
+      <div class="subtopic-hero panel">
+        <div class="subtopic-ico-lg" id="hero-ico"></div>
+        <div>
+          <h2 id="hero-name"></h2>
+          <div class="muted small" id="hero-skills"></div>
+        </div>
+      </div>
+
+      <!-- The two things we can do here: study, or take the assessment -->
+      <div class="choice">
+        <a class="choice-card" id="study-card">
+          <div class="choice-ico" id="study-ico"></div>
+          <div class="choice-t">Study</div>
+          <div class="choice-d" id="study-desc"></div>
+        </a>
+        <a class="choice-card" id="exam-card">
+          <div class="choice-ico" id="exam-ico"></div>
+          <div class="choice-t" id="exam-title"></div>
+          <div class="choice-d" id="exam-desc"></div>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, helpers, sidebar -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* Which subtopic are we on? It comes from the URL (?i=…), falling back to
+       the most recent one. */
+    const progress = load_progress();
+    const subtopic_index = parseInt(get_url_parameter('i', progress.last_studied_subtopic != null ? progress.last_studied_subtopic : 0), 10);
+    const subtopic = SUBTOPICS[subtopic_index];
+    const is_tier_3 = (progress.current_tier === 3);
+
+
+    /* Fill the sidebar, this time showing THIS subtopic's pages in the tree. */
+    fill_sidebar('curriculum', progress, subtopic_index, null);
+
+
+    /* Header + hero */
+    document.getElementById('crumb-name').textContent = subtopic.name;
+    document.getElementById('subtopic-title').textContent = subtopic.name;
+    document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
+    document.getElementById('hero-ico').innerHTML = subtopic_icon_svg(subtopic_index);
+    document.getElementById('hero-name').textContent = subtopic.name;
+    document.getElementById('hero-skills').textContent = 'Skills · ' + subtopic.skills.join('  ·  ');
+
+
+    /* The "Study" card links to the first study page. */
+    document.getElementById('study-ico').innerHTML = study_icon_svg();
+    document.getElementById('study-desc').textContent = 'Read the Tier ' + progress.current_tier + ' material for this subtopic.';
+    document.getElementById('study-card').href = 'study.html?i=' + subtopic_index + '&page=0';
+
+
+    /* The second card is the assessment — a Tier 3 subtopic runs the defense instead. */
+    document.getElementById('exam-ico').innerHTML = is_tier_3 ? defense_icon_svg() : assessment_icon_svg();
+    document.getElementById('exam-title').textContent = is_tier_3 ? 'Defense' : 'Assessment';
+    document.getElementById('exam-desc').textContent = is_tier_3
+      ? 'Defend your understanding to an examiner.'
+      : 'Answer questions until you master the skills.';
+    document.getElementById('exam-card').href = 'exam.html?i=' + subtopic_index;
+  </script>
+</body>
+
+</html>

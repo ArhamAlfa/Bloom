@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Dashboard</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar (identical on every in-app page) =================
+         The structure is plain HTML. js/sidebar.js fills the icons, the
+         current-tier readout and the contents tree, and highlights the active tab. -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: the dashboard ================= -->
+    <main class="main">
+
+      <header class="pagehead">
+        <div>
+          <h1 class="ptitle">Dashboard</h1>
+        </div>
+        <div class="ph-right"><span class="pill" id="tier-pill"></span></div>
+      </header>
+
+      <div class="dash">
+
+        <!-- Mastery: the flower and its progress summary -->
+        <section class="panel mastery-panel">
+          <div class="cap">Knowledge mastery</div>
+          <div id="dash-flower"></div>
+          <div class="mastery-label" id="dash-mastery-label"></div>
+          <div class="muted small" id="dash-progress" style="margin-top:2px"></div>
+        </section>
+
+        <!-- Continue: the most recent subtopic -->
+        <section class="panel continue">
+          <div class="cap">Continue learning</div>
+          <div id="dash-continue"></div>
+        </section>
+
+        <!-- Performance: a placeholder chart -->
+        <section class="panel wide">
+          <div class="cap">Performance</div>
+          <div id="dash-chart"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, helpers, and the sidebar filler -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* Load saved progress and fill the shared sidebar (Dashboard tab active). */
+    const progress = load_progress();
+    fill_sidebar('dashboard', progress, null, null);
+
+
+    /* Fill the mastery panel: the flower, its stage label, and the tier line. */
+    document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
+    document.getElementById('dash-flower').innerHTML = flower_svg(progress.flower_stage, 150);
+    document.getElementById('dash-mastery-label').textContent = flower_stage_label(progress);
+    document.getElementById('dash-progress').textContent = tier_progress_summary(progress);
+
+
+    /* Draw the placeholder performance chart. */
+    document.getElementById('dash-chart').innerHTML = performance_chart_svg();
+
+
+    /* Fill the "continue learning" panel with the most recent subtopic (if any). */
+    const continue_panel = document.getElementById('dash-continue');
+    if (progress.last_studied_subtopic != null) {
+      const subtopic_index = progress.last_studied_subtopic;
+      const status = get_subtopic_status(progress, subtopic_index, progress.current_tier);
+      continue_panel.innerHTML =
+        '<div class="big">' + SUBTOPICS[subtopic_index].name + '</div>' +
+        '<div class="muted small">' + status.label + ' · Tier ' + progress.current_tier + '</div>' +
+        '<div class="actions-row"><a class="btn primary" href="subtopic.html?i=' + subtopic_index + '">Resume subtopic →</a></div>';
+    } else {
+      continue_panel.innerHTML =
+        '<div class="big">No subtopic yet</div>' +
+        '<div class="muted small">Open the curriculum to begin.</div>' +
+        '<div class="actions-row"><a class="btn primary" href="curriculum.html">Open curriculum →</a></div>';
+    }
+  </script>
+</body>
+
+</html>

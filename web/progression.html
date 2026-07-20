@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Progression</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: a tier was cleared ================= -->
+    <main class="main">
+      <div class="prog">
+        <div id="prog-flower"></div>
+        <h1 class="ptitle" id="prog-heading" style="margin-top:14px"></h1>
+        <p class="prog-sub" id="prog-sub"></p>
+        <div id="prog-action"></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, helpers, sidebar -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* This page is reached after a tier is fully cleared. The flower stage and
+       the next tier to unlock were already set (and saved) by the exam page. */
+    const progress = load_progress();
+    fill_sidebar('curriculum', progress, null, null);
+    document.getElementById('prog-flower').innerHTML = flower_svg(progress.flower_stage, 190);
+
+
+    if (progress.course_complete) {
+      /* Every tier of every subtopic is done. */
+      document.getElementById('prog-heading').textContent = 'Full bloom achieved';
+      document.getElementById('prog-sub').textContent = 'Every subtopic has cleared all three tiers. The flower is in full bloom.';
+      document.getElementById('prog-action').innerHTML = '<a class="btn primary lg" href="curriculum.html">Return to curriculum</a>';
+    } else {
+      /* A tier was cleared and the next one is unlocked. */
+      const next_tier = progress.next_tier_to_unlock;
+      document.getElementById('prog-heading').textContent = 'Tier ' + progress.current_tier + ' complete';
+      document.getElementById('prog-sub').textContent =
+        'Every subtopic has cleared Tier ' + progress.current_tier + '. Tier ' + next_tier + ' — ' +
+        TIER_NAMES[next_tier].split('·')[1].trim() + ' — is now unlocked.';
+      document.getElementById('prog-action').innerHTML =
+        '<button class="btn primary lg" id="advance-btn">Continue to Tier ' + next_tier + ' →</button>';
+
+      /* "Continue" moves the whole cohort up to the next tier, then saves. */
+      document.getElementById('advance-btn').addEventListener('click', function () {
+        progress.current_tier = progress.next_tier_to_unlock;
+        progress.next_tier_to_unlock = null;
+        save_progress(progress);
+        window.location.href = 'curriculum.html';
+      });
+    }
+  </script>
+</body>
+
+</html>
