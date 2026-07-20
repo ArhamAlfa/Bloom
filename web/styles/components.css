@@ -133,6 +133,23 @@
 /* ---- Flower ---- */
 .flower{display:block; margin:0 auto}
 
+/* ---- Intro animation on the landing page ----
+   A squiggle draws itself, collapses to the ground, then grows back up as the
+   flower's stalk, and finally the flower fades in on top of it. The line SVG
+   and the flower sit in the same 150x150 box, stacked exactly on top of each
+   other, so the stalk the line becomes IS the flower's stem. */
+#intro-view{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center;
+  justify-content:center; z-index:9999; transition:opacity .4s ease}
+#intro-view.is-fading{opacity:0}
+.intro-stack{position:relative; width:150px; height:150px; transform:scale(1.8)}
+.intro-stack > *{position:absolute; inset:0}
+#intro-line{fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; stroke-linejoin:round}
+#intro-line.is-drawing{stroke-dasharray:1000; stroke-dashoffset:1000; animation:draw-squiggle 1.2s ease-in-out forwards}
+@keyframes draw-squiggle{to{stroke-dashoffset:0}}
+.intro-flower{opacity:0; transform:scale(.7); transform-origin:50% 95%;
+  transition:opacity .45s ease, transform .45s ease}
+.intro-flower.is-visible{opacity:1; transform:scale(1)}
+
 /* ---- Full-screen landing + topic entry ---- */
 .landing,.entry{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
   position:relative; background-image:radial-gradient(rgba(120,140,120,.10) 1px, transparent 1px); background-size:22px 22px}
