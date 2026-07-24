@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Assessment</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: exam mode ================= -->
+    <main class="main">
+
+      <header class="pagehead">
+        <div>
+          <div class="trail">
+            <a class="tcrumb" href="curriculum.html">Curriculum</a>
+            <span class="tsep">›</span>
+            <a class="tcrumb" id="crumb-subtopic"></a>
+            <span class="tsep">›</span>
+            <span class="tcur" id="crumb-mode"></span>
+          </div>
+          <h1 class="ptitle" id="exam-title"></h1>
+        </div>
+        <div class="ph-right"><span class="pill" id="mode-pill"></span></div>
+      </header>
+
+      <!-- Everything for exam mode is drawn into this one panel. Unlike the
+           other pages, exam mode updates in place as we answer, and only
+           navigates away once the subtopic is settled. -->
+      <section class="panel" id="exam-panel"></section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, helpers, the exam API, sidebar -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/exam.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* ============================================================
+       Work out what we are assessing.
+       ============================================================ */
+
+    const progress = load_progress();
+
+    // Which subtopic? It comes from the URL (?i=…). If it is missing, fall
+    // back to the last one the learner studied, and failing that, the first.
+    let fallback_subtopic_index = 0;
+    if (progress.last_studied_subtopic !== null) {
+      fallback_subtopic_index = progress.last_studied_subtopic;
+    }
+    const subtopic_index = parseInt(get_url_parameter('i', fallback_subtopic_index), 10);
+
+    const subtopic = SUBTOPICS[subtopic_index];
+    const current_tier = progress.current_tier;
+    const is_tier_3 = (current_tier === 3);
+
+    const exam_panel = document.getElementById('exam-panel');
+
+
+    /* ============================================================
+       Fill the sidebar and the page header.
+       ============================================================ */
+
+    fill_sidebar('curriculum', progress, subtopic_index, null);
+
+    // Tier 1 and 2 are an "Assessment"; Tier 3 is a "Defense".
+    let mode_name = 'Assessment';
+    let mode_pill_text = TIER_NAMES[current_tier];
+
+    if (is_tier_3) {
+      mode_name = 'Defense';
+      mode_pill_text = 'Thesis defense';
+      document.getElementById('mode-pill').classList.add('slate');
+    }
+
+    document.getElementById('crumb-subtopic').textContent = subtopic.name;
+    document.getElementById('crumb-subtopic').href = 'subtopic.html?i=' + subtopic_index;
+    document.getElementById('exam-title').textContent = mode_name;
+    document.getElementById('crumb-mode').textContent = mode_name;
+    document.getElementById('mode-pill').textContent = mode_pill_text;
+
+
+    /* ============================================================
+       TIER 1 / 2 — the BKT question loop.
+
+       There is no fixed number of questions. Every answer updates the BKT
+       score of one skill, and the subtopic is mastered only once every one
+       of its skills has passed the threshold.
+       ============================================================ */
+
+    // The BKT scores for this subtopic at this tier: { skill name -> 0.0..1.0 }
+    let tier_mastery = null;
+    if (!is_tier_3) {
+      tier_mastery = progress.mastery[subtopic_index][current_tier];
+    }
+
+    // Questions asked so far this session. We send these to the generator so
+    // it does not repeat itself.
+    const past_questions = [];
+
+    // The question currently on screen, and what the learner has done with it.
+    let current_question = null;
+    let chosen_option = null;
+    let is_submitted = false;
+
+
+    /* Turn the raw BKT scores into a percentage for the progress bar.
+
+       Raw BKT scores never start at zero (the model needs a non-zero prior)
+       and mastery is reached at the threshold rather than at 1.0. Showing the
+       raw average would mean the bar starts around 20% and never fills, so we
+       stretch the range we actually care about:
+
+           average score at BKT_PRIOR         ->   0%
+           average score at MASTERY_THRESHOLD -> 100%
+
+       Anything below the prior is clamped to 0%. */
+    function mastery_display_percent() {
+      const skill_scores = tier_mastery.skill_scores;
+      const skill_names = Object.keys(skill_scores);
+
+      if (skill_names.length === 0) {
+        return 0;
+      }
+
+      // Average across the skills, so each one pulls its weight equally.
+      let total_score = 0;
+      skill_names.forEach(function (skill_name) {
+        total_score = total_score + skill_scores[skill_name];
+      });
+      const average_score = total_score / skill_names.length;
+
+      // Stretch [prior .. threshold] onto [0 .. 100].
+      const usable_range = MASTERY_THRESHOLD - BKT_PRIOR;
+      const stretched_percent = (average_score - BKT_PRIOR) / usable_range * 100;
+
+      // Never show less than 0% or more than 100%.
+      if (stretched_percent < 0) {
+        return 0;
+      }
+      if (stretched_percent > 100) {
+        return 100;
+      }
+      return Math.round(stretched_percent);
+    }
+
+
+    /* Ask the backend for the next question, then draw it. */
+    async function load_next_question() {
+      exam_panel.innerHTML = '<p class="muted">Generating the next question…</p>';
+
+      // Everything the generator needs to choose a skill and write a question.
+      const question_request = {
+        curriculum: subtopic.curriculum,
+        skill_mastery: tier_mastery.skill_scores,
+        past_questions: past_questions,
+        tier: current_tier
+      };
+
+      current_question = await request_next_question(question_request);
+
+      // A fresh question means nothing is chosen or submitted yet.
+      chosen_option = null;
+      is_submitted = false;
+
+      render_question();
+    }
+
+
+    /* Read the learner's answer out of whichever input this question used. */
+    function read_user_answer() {
+      if (current_question.question_type === 'mcq') {
+        return chosen_option;
+      }
+
+      const written_answer_box = document.getElementById('written-answer');
+      if (!written_answer_box) {
+        return '';
+      }
+      return written_answer_box.value;
+    }
+
+
+    /* Send the answer to the grader, store the skill's new BKT score, then
+       either finish the subtopic or ask another question. */
+    async function submit_grade(was_correct) {
+
+      // Which skill this question tested, and how confident we currently are.
+      const skill_name = current_question.skill;
+      const current_score = tier_mastery.skill_scores[skill_name];
+      const user_answer = read_user_answer();
+
+      // Build the packet for the grader: the whole question, plus the answer
+      // and the current score for the skill it targeted.
+      const grade_request = {
+        ...current_question,
+        user_answer: user_answer,
+        current_score: current_score,
+        was_correct: was_correct        // demo only — a real grader decides this itself
+      };
+
+      // Send it off and wait for the skill's new score to come back.
+      const new_score = await request_grade(grade_request);
+
+      // Record the result.
+      tier_mastery.skill_scores[skill_name] = new_score;
+      past_questions.push(current_question);
+
+      // The subtopic is mastered only when EVERY skill has passed the threshold.
+      const everything_mastered = are_all_skills_mastered(tier_mastery.skill_scores);
+
+      if (everything_mastered) {
+        tier_mastery.is_mastered = true;
+        progress.last_studied_subtopic = subtopic_index;
+
+        show_toast('Subtopic mastered — Tier ' + current_tier);
+        window.location.href = advance_progress_after_mastery(progress);
+        return;
+      }
+
+      // Not there yet: save what we learned and ask another question.
+      save_progress(progress);
+
+      const score_as_percent = Math.round(new_score * 100);
+      show_toast(skill_name + ' · ' + score_as_percent + '%');
+
+      load_next_question();
+    }
+
+
+    /* ---------- Building the pieces of the question screen ---------- */
+
+    /* Build the mastery bar shown above every question. */
+    function build_mastery_bar_html() {
+      const display_percent = mastery_display_percent();
+      const threshold_percent = Math.round(MASTERY_THRESHOLD * 100);
+
+      const caption_html = '<div class="cap">Subtopic mastery · ' + display_percent + '%</div>';
+      const bar_html = '<div class="bar"><div class="fill" style="width:' + display_percent + '%"></div></div>';
+      const note_html = '<div class="muted small" style="margin-top:8px">Mastered once every skill passes '
+        + threshold_percent + '% confidence.</div>';
+
+      return '<div class="mastery">' + caption_html + bar_html + note_html + '</div>';
+    }
+
+
+    /* Build the question text itself, and the skill it is aimed at. */
+    function build_question_html() {
+      const skill_line_html = '<div class="q-tag">Targeting · ' + current_question.skill + '</div>';
+      const prompt_html = '<div class="q-prompt">' + current_question.question + '</div>';
+
+      return skill_line_html + prompt_html;
+    }
+
+
+    /* Build the multiple-choice buttons. */
+    function build_choice_options_html() {
+      let buttons_html = '';
+
+      current_question.options.forEach(function (option_text, option_index) {
+
+        // Highlight the option the learner picked.
+        let css_class = 'opt';
+        if (option_text === chosen_option) {
+          css_class = 'opt sel';
+        }
+
+        // Once submitted, the options stop being clickable.
+        let disabled_attribute = '';
+        if (is_submitted) {
+          disabled_attribute = ' disabled';
+        }
+
+        const one_button_html = '<button class="' + css_class + '" data-act="select" data-arg="'
+          + option_index + '"' + disabled_attribute + '>' + option_text + '</button>';
+
+        buttons_html = buttons_html + one_button_html;
+      });
+
+      return '<div class="opts">' + buttons_html + '</div>';
+    }
+
+
+    /* Build the free-text answer box. */
+    function build_written_answer_html() {
+      let disabled_attribute = '';
+      if (is_submitted) {
+        disabled_attribute = ' disabled';
+      }
+
+      return '<textarea class="area" id="written-answer" placeholder="Type your answer…"'
+        + disabled_attribute + '></textarea>';
+    }
+
+
+    /* Build whichever answer input this question needs. */
+    function build_answer_input_html() {
+      if (current_question.question_type === 'mcq') {
+        return build_choice_options_html();
+      }
+      return build_written_answer_html();
+    }
+
+
+    /* Build the buttons under the question: a submit button first, then the
+       model answer and the three grading buttons once submitted. */
+    function build_controls_html() {
+
+      if (!is_submitted) {
+        return '<div class="actions-row"><button class="btn primary" data-act="submit">Submit answer →</button></div>';
+      }
+
+      const model_answer_html = '<div class="answer"><b>Model answer:</b> ' + current_question.answer + '</div>';
+      const grade_label_html = '<div class="cap">Grade — faked, we steer it</div>';
+
+      const grade_buttons_html =
+        '<div class="actions-row" style="margin-top:10px">'
+        + '<button class="btn ok" data-act="correct">✓ Mark correct</button>'
+        + '<button class="btn danger" data-act="incorrect">✗ Mark incorrect</button>'
+        + '<button class="btn ghost" data-act="coin">Coin-flip</button>'
+        + '</div>';
+
+      return '<div class="graded">' + model_answer_html + grade_label_html + grade_buttons_html + '</div>';
+    }
+
+
+    /* Draw the whole question screen. */
+    function render_question() {
+      const mastery_html = build_mastery_bar_html();
+      const question_html = build_question_html();
+      const answer_html = build_answer_input_html();
+      const controls_html = build_controls_html();
+
+      exam_panel.innerHTML = mastery_html + question_html + answer_html + controls_html;
+    }
+
+
+    /* Draw a "nothing left to do here" card with a big tick. Used when a
+       subtopic is already finished, at any tier. */
+    function render_mastered_card(heading_text, note_text) {
+      const tick_html = '<div class="check big-check">✓</div>';
+      const heading_html = '<h2 style="font-family:var(--serif); margin:12px 0 4px">' + heading_text + '</h2>';
+      const note_html = '<p class="muted">' + note_text + '</p>';
+      const button_html = '<div class="actions-row" style="justify-content:center">'
+        + '<a class="btn primary" href="curriculum.html">Back to curriculum →</a></div>';
+
+      exam_panel.innerHTML = '<div style="text-align:center">'
+        + tick_html + heading_html + note_html + button_html + '</div>';
+    }
+
+
+    /* ============================================================
+       TIER 3 — the examiner chat.
+
+       A real conversation rather than a question loop. There is one endpoint:
+       we send the whole message history, the examiner replies, and it tells us
+       whether the defense is passed. Nothing is stored — leaving the page
+       clears the conversation.
+       ============================================================ */
+
+    // The conversation so far. Each entry is { role: 'user' | 'assistant', content }.
+    const defense_messages = [];
+
+    // These get filled in once the chat shell has been drawn.
+    let defense_chat_element = null;
+    let defense_input_element = null;
+
+    // True while we are waiting on the examiner, so we cannot send twice.
+    let is_waiting_for_examiner = false;
+
+
+    /* Draw the chat shell once: the lead line, the empty transcript, and the
+       message box. Individual messages are appended into it afterwards, so
+       that typing is never interrupted by a redraw. */
+    function render_defense_shell() {
+      const lead_html = '<div class="defense-lead muted small">' + TIER_NAMES[3]
+        + ' — defend your understanding of <b>' + subtopic.name + '</b>. Open whenever you are ready.</div>';
+
+      const transcript_html = '<div class="chat" id="defense-chat"></div>';
+
+      const message_box_html =
+        '<form class="chat-input" id="defense-form">'
+        + '<textarea id="defense-message" rows="2" placeholder="Type your response…"></textarea>'
+        + '<button class="btn primary" type="submit">Send</button>'
+        + '</form>';
+
+      exam_panel.innerHTML = lead_html + transcript_html + message_box_html;
+
+      defense_chat_element = document.getElementById('defense-chat');
+      defense_input_element = document.getElementById('defense-message');
+
+      // Sending happens either from the button, or from the Enter key.
+      const defense_form = document.getElementById('defense-form');
+
+      defense_form.addEventListener('submit', function (submit_event) {
+        submit_event.preventDefault();
+        send_typed_message();
+      });
+
+      // Enter sends; Shift+Enter starts a new line.
+      defense_input_element.addEventListener('keydown', function (key_event) {
+        const is_plain_enter = (key_event.key === 'Enter' && !key_event.shiftKey);
+
+        if (is_plain_enter) {
+          key_event.preventDefault();
+          send_typed_message();
+        }
+      });
+
+      defense_input_element.focus();
+    }
+
+
+    /* Add one message bubble to the transcript, then scroll down to it. */
+    function append_defense_message(role, content) {
+      let speaker_name = 'You';
+      let bubble_side_class = 'me';
+
+      if (role === 'assistant') {
+        speaker_name = 'Examiner';
+        bubble_side_class = 'ex';
+      }
+
+      const message_element = document.createElement('div');
+      message_element.className = 'msg ' + bubble_side_class;
+      message_element.innerHTML = '<div class="who">' + speaker_name + '</div>'
+        + '<div class="bubble">' + escape_html(content) + '</div>';
+
+      defense_chat_element.appendChild(message_element);
+      defense_chat_element.scrollTop = defense_chat_element.scrollHeight;
+    }
+
+
+    /* Show a blinking "Thinking…" bubble while the examiner is answering. */
+    function show_examiner_thinking() {
+      const thinking_element = document.createElement('div');
+      thinking_element.className = 'msg ex';
+      thinking_element.id = 'examiner-thinking';
+      thinking_element.innerHTML = '<div class="who">Examiner</div>'
+        + '<div class="bubble thinking">Thinking'
+        + '<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+
+      defense_chat_element.appendChild(thinking_element);
+      defense_chat_element.scrollTop = defense_chat_element.scrollHeight;
+    }
+
+
+    /* Take the "Thinking…" bubble away again. */
+    function hide_examiner_thinking() {
+      const thinking_element = document.getElementById('examiner-thinking');
+
+      if (thinking_element) {
+        thinking_element.remove();
+      }
+    }
+
+
+    /* Send whatever is in the message box to the examiner and show the reply. */
+    async function send_typed_message() {
+      const typed_text = defense_input_element.value.trim();
+
+      // Nothing to send, or we are still waiting on the last message.
+      if (typed_text === '') {
+        return;
+      }
+      if (is_waiting_for_examiner) {
+        return;
+      }
+
+      // Show the learner's message straight away and clear the box.
+      defense_messages.push({ role: 'user', content: typed_text });
+      append_defense_message('user', typed_text);
+      defense_input_element.value = '';
+
+      // Wait for the examiner, showing the blinking bubble meanwhile.
+      is_waiting_for_examiner = true;
+      show_examiner_thinking();
+
+      const defense_request = {
+        curriculum: subtopic.curriculum,
+        messages: defense_messages
+      };
+
+      const examiner_reply = await send_defense_message(defense_request);
+
+      hide_examiner_thinking();
+      is_waiting_for_examiner = false;
+
+      // Show what the examiner said.
+      defense_messages.push({ role: 'assistant', content: examiner_reply.response });
+      append_defense_message('assistant', examiner_reply.response);
+
+      // The examiner alone decides when the defense has been passed.
+      if (examiner_reply.defense_passed) {
+        progress.mastery[subtopic_index][3].defense_result = 'passed';
+        progress.last_studied_subtopic = subtopic_index;
+
+        show_toast('Defense passed — mastery granted');
+        window.location.href = advance_progress_after_mastery(progress);
+      }
+    }
+
+
+    /* ============================================================
+       One click handler for every button inside the panel.
+
+       Each button carries a data-act attribute naming what it does, so we
+       read that and call the matching function.
+       ============================================================ */
+
+    exam_panel.addEventListener('click', function (click_event) {
+
+      const clicked_button = click_event.target.closest('[data-act]');
+      if (!clicked_button) {
+        return;
+      }
+      if (clicked_button.disabled) {
+        return;
+      }
+
+      const action = clicked_button.getAttribute('data-act');
+
+      // Picking one of the multiple-choice options.
+      if (action === 'select') {
+        const option_index = parseInt(clicked_button.getAttribute('data-arg'), 10);
+        chosen_option = current_question.options[option_index];
+        render_question();
+        return;
+      }
+
+      // Submitting the answer reveals the model answer and the grade buttons.
+      if (action === 'submit') {
+        is_submitted = true;
+        render_question();
+        return;
+      }
+
+      // The three grading buttons.
+      if (action === 'correct') {
+        submit_grade(true);
+        return;
+      }
+
+      if (action === 'incorrect') {
+        submit_grade(false);
+        return;
+      }
+
+      if (action === 'coin') {
+        const coin_landed_correct = (Math.random() < 0.5);
+        submit_grade(coin_landed_correct);
+        return;
+      }
+    });
+
+
+    /* ============================================================
+       Start whichever engine this tier calls for.
+       ============================================================ */
+
+    if (is_tier_3) {
+      const defense_already_passed = (progress.mastery[subtopic_index][3].defense_result === 'passed');
+
+      if (defense_already_passed) {
+        render_mastered_card('Defense passed', 'This subtopic has already cleared its Tier 3 defense.');
+      } else {
+        render_defense_shell();
+      }
+
+    } else if (tier_mastery.is_mastered) {
+      const threshold_percent = Math.round(MASTERY_THRESHOLD * 100);
+
+      render_mastered_card('Mastered at Tier ' + current_tier,
+        'Every skill in this subtopic is above ' + threshold_percent + '% confidence.');
+
+    } else {
+      load_next_question();
+    }
+  </script>
+</body>
+
+</html>

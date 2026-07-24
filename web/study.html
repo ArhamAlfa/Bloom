@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Study</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: one study page ================= -->
+    <main class="main">
+
+      <header class="pagehead">
+        <div>
+          <div class="trail">
+            <a class="tcrumb" href="curriculum.html">Curriculum</a>
+            <span class="tsep">›</span>
+            <a class="tcrumb" id="crumb-subtopic"></a>
+            <span class="tsep">›</span>
+            <span class="tcur" id="crumb-page"></span>
+          </div>
+          <h1 class="ptitle" id="page-title"></h1>
+        </div>
+        <div class="ph-right"><span class="pill" id="tier-pill"></span></div>
+      </header>
+
+      <div id="stub-note"></div>
+
+      <!-- The page's content (one or more "cells") is built into here. -->
+      <article class="lesson panel" id="lesson"></article>
+
+      <!-- Previous / next page links -->
+      <div class="study-nav">
+        <span id="nav-prev"></span>
+        <span id="nav-next"></span>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, helpers, sidebar -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* The subtopic (?i=) and which page of it (?page=) both come from the URL. */
+    const progress = load_progress();
+    const subtopic_index = parseInt(get_url_parameter('i', progress.last_studied_subtopic != null ? progress.last_studied_subtopic : 0), 10);
+    const subtopic = SUBTOPICS[subtopic_index];
+
+    // Wrap the rendering logic in an async function so we can await the fetch
+    async function init_study_page() {
+      
+      // // 1. Fetch the real study data from our new API client
+      // // subtopic.curriculum holds the exact raw payload the backend needs
+      const real_study_data = await fetch_study_data(subtopic.curriculum); 
+      
+      // 2. Overwrite the stub in our local state with the real data
+      subtopic.study = real_study_data;
+      const study = subtopic.study;
+      
+      // 3. Recalculate the pages now that we have the real headings
+      const study_page_list = get_study_pages(subtopic_index);
+
+      let page_index = parseInt(get_url_parameter('page', 0), 10);
+      if (page_index < 0) page_index = 0;
+      if (page_index >= study_page_list.length) page_index = study_page_list.length - 1;
+      const current_page = study_page_list[page_index];
+
+      /* Fill the sidebar, highlighting the page we are on. */
+      fill_sidebar('curriculum', progress, subtopic_index, page_index);
+
+      /* Header */
+      document.getElementById('crumb-subtopic').textContent = subtopic.name;
+      document.getElementById('crumb-subtopic').href = 'subtopic.html?i=' + subtopic_index;
+      document.getElementById('crumb-page').textContent = current_page.num;
+      document.getElementById('page-title').textContent = current_page.num + ' · ' + current_page.title;
+      document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
+      
+      // Clear the warning note if it's no longer a stub
+      if (study.stub) {
+        document.getElementById('stub-note').innerHTML =
+          '<div class="stub-note">Placeholder outline — only "Gravitational fields" is fully authored in the Study Engine fixture.</div>';
+      } else {
+        document.getElementById('stub-note').innerHTML = ''; 
+      }
+
+      /* Build one "cell": a tier's body plus its further reading. */
+      function make_cell(tier, tier_label, tier_content, is_unlocked, lock_message) {
+        const content_html = render_body(tier_content.body) + render_further_reading(tier_content.further_reading);
+        const tier_badge = '<div class="cell-tier tier' + tier + '">' + tier_label + '</div>';
+
+        if (is_unlocked) return '<section class="lesson-cell">' + tier_badge + content_html + '</section>';
+
+        return '<section class="lesson-cell locked">' + tier_badge +
+          '<div class="cell-blur">' + content_html + '</div>' +
+          '<div class="cell-lock"><span class="lock-ico">' + lock_icon_svg() + '</span>' + lock_message + '</div></section>';
+      }
+
+      /* Build the body for this page. */
+      let lesson_html;
+      if (current_page.kind === 'intro') {
+        lesson_html = '<section class="lesson-cell">' + (study.intro ? render_body(study.intro.body) : '<p class="muted">No overview yet.</p>') + '</section>';
+      } else if (current_page.kind === 'section') {
+        const section = study.sections[current_page.section_index];
+        lesson_html = make_cell(1, TIER_NAMES[1], section.tier_1, true, '')
+          + make_cell(2, TIER_NAMES[2], section.tier_2, progress.mastery[subtopic_index][1].is_mastered, 'Master Tier 1 to unlock this extension.');
+      } else {
+        lesson_html = make_cell(3, TIER_NAMES[3], study.capstone, progress.mastery[subtopic_index][2].is_mastered, 'Master Tier 2 to unlock the capstone.');
+      }
+      document.getElementById('lesson').innerHTML = lesson_html;
+
+      /* Previous / next links. */
+      if (page_index > 0) {
+        document.getElementById('nav-prev').innerHTML =
+          '<a class="btn ghost" href="study.html?i=' + subtopic_index + '&page=' + (page_index - 1) + '">← ' + study_page_list[page_index - 1].num + '</a>';
+      }
+      if (page_index < study_page_list.length - 1) {
+        document.getElementById('nav-next').innerHTML =
+          '<a class="btn primary" href="study.html?i=' + subtopic_index + '&page=' + (page_index + 1) + '">' + study_page_list[page_index + 1].num + ' · ' + study_page_list[page_index + 1].title + ' →</a>';
+      } else {
+        document.getElementById('nav-next').innerHTML =
+          '<a class="btn primary" href="exam.html?i=' + subtopic_index + '">' + (progress.current_tier === 3 ? 'Go to defense →' : 'Go to assessment →') + '</a>';
+      }
+    }
+
+    // Fire the async function to load and render the page
+    init_study_page();
+  </script>
+</body>
+
+</html>

@@ -1,28 +1,33 @@
 {
-    "topic": "Kinematics IB",
+    "topic": "Kinematics",
     "subtopics": [
         {
-            "name": "Describing Motion",
+            "name": "1D Motion Fundamentals",
             "skills": [
                 {
-                    "name": "Differentiate between scalar and vector quantities",
-                    "tier_1_metric": "Define scalar and vector quantities; identify common examples (e.g., distance/displacement, speed/velocity).",
-                    "tier_2_metric": "Classify given physical quantities in a problem as scalar or vector; justify the classification based on definition."
+                    "name": "Position, Distance, and Displacement",
+                    "tier_1_metric": "Define scalar versus vector quantities and state the SI units for position, distance, and displacement.",
+                    "tier_2_metric": "Calculate total distance and net displacement from a given position-time data set for a moving object."
                 },
                 {
-                    "name": "Define and distinguish between distance and displacement",
-                    "tier_1_metric": "Define distance and displacement; state their SI units.",
-                    "tier_2_metric": "Calculate distance and displacement for an object following a specified path; compare their values for non-linear motion."
+                    "name": "Average and Instantaneous Speed",
+                    "tier_1_metric": "Explain the difference between average speed and instantaneous speed using everyday examples.",
+                    "tier_2_metric": "Compute average speed and solve for missing variables using total distance and total time elapsed."
                 },
                 {
-                    "name": "Define and distinguish between speed and velocity",
-                    "tier_1_metric": "Define average speed and average velocity; state their SI units.",
-                    "tier_2_metric": "Calculate average speed and average velocity for an object undergoing motion; explain the difference in their calculation for a round trip."
+                    "name": "Average and Instantaneous Velocity",
+                    "tier_1_metric": "Define average velocity mathematically as the change in position over change in time.",
+                    "tier_2_metric": "Differentiate between average velocity and average speed in scenarios involving directional changes."
                 },
                 {
-                    "name": "Define and calculate acceleration",
-                    "tier_1_metric": "Define acceleration; state its SI units and vector nature.",
-                    "tier_2_metric": "Calculate average acceleration from initial and final velocities and time; interpret the sign of acceleration in one-dimensional motion."
+                    "name": "Uniform Acceleration",
+                    "tier_1_metric": "Identify the defining characteristics of motion with constant acceleration.",
+                    "tier_2_metric": "Solve for final velocity or time given initial conditions under uniform acceleration."
+                },
+                {
+                    "name": "Kinematic Equations for Constant Acceleration",
+                    "tier_1_metric": "List the four primary kinematic equations relating displacement, velocity, acceleration, and time.",
+                    "tier_2_metric": "Select and execute the appropriate kinematic equation to solve an unknown variable in a vertical drop scenario."
                 }
             ]
         },
@@ -30,74 +35,59 @@
             "name": "Graphical Analysis of Motion",
             "skills": [
                 {
-                    "name": "Interpret position-time (x-t) graphs",
-                    "tier_1_metric": "Identify position, displacement, and time from an x-t graph; describe motion (e.g., rest, constant velocity, acceleration).",
-                    "tier_2_metric": "Calculate instantaneous velocity from the gradient of an x-t graph; compare velocities of multiple objects from their x-t graphs."
+                    "name": "Position-Time Graphs",
+                    "tier_1_metric": "Identify how stationary, constant velocity, and accelerating motion appear on a position-time graph.",
+                    "tier_2_metric": "Calculate instantaneous velocity at a specific point by finding the slope of the tangent on a position-time curve."
                 },
                 {
-                    "name": "Interpret velocity-time (v-t) graphs",
-                    "tier_1_metric": "Identify velocity, time, and acceleration from a v-t graph; describe motion (e.g., constant velocity, constant acceleration).",
-                    "tier_2_metric": "Calculate displacement from the area under a v-t graph; determine instantaneous acceleration from the gradient of a v-t graph."
+                    "name": "Velocity-Time Graphs",
+                    "tier_1_metric": "State what the slope and the area under a velocity-time graph represent.",
+                    "tier_2_metric": "Differentiate between periods of constant acceleration and changing acceleration by analyzing the shape of a velocity-time graph."
                 },
                 {
-                    "name": "Interpret acceleration-time (a-t) graphs",
-                    "tier_1_metric": "Identify acceleration and time from an a-t graph.",
-                    "tier_2_metric": "Infer changes in velocity from the area under an a-t graph; relate an a-t graph to its corresponding v-t graph."
+                    "name": "Acceleration-Time Graphs",
+                    "tier_1_metric": "Define acceleration-time graph features and state the meaning of the area under the curve.",
+                    "tier_2_metric": "Construct a velocity-time graph by analyzing and integrating data from a given acceleration-time graph."
                 },
                 {
-                    "name": "Sketch motion graphs from given scenarios or other graphs",
-                    "tier_1_metric": "Sketch a basic x-t, v-t, or a-t graph for simple constant velocity or constant acceleration scenarios.",
-                    "tier_2_metric": "Construct a v-t graph from a given x-t graph; sketch an a-t graph corresponding to a v-t graph."
+                    "name": "Interpreting Interconnected Motion Graphs",
+                    "tier_1_metric": "Match corresponding points across position-time, velocity-time, and acceleration-time graphs for simple motion.",
+                    "tier_2_metric": "Deconstruct a complex multi-stage journey to translate a position-time graph into its corresponding velocity-time graph."
+                },
+                {
+                    "name": "Relative Motion Graphs",
+                    "tier_1_metric": "Explain how relative motion between two objects is represented on a shared graph.",
+                    "tier_2_metric": "Compare two objects' motion curves on a single velocity-time graph to determine when and where they meet."
                 }
             ]
         },
         {
-            "name": "Equations of Uniformly Accelerated Motion (SUVAT)",
+            "name": "Vectors in 2D Kinematics",
             "skills": [
                 {
-                    "name": "Recall and state the SUVAT equations",
-                    "tier_1_metric": "List the five SUVAT equations; identify each variable (s, u, v, a, t) and its meaning.",
-                    "tier_2_metric": "Select the appropriate SUVAT equation to solve a given one-dimensional problem with constant acceleration."
+                    "name": "Vector Addition and Resolution",
+                    "tier_1_metric": "Define vector components and identify trigonometric relationships used for right-triangle resolution.",
+                    "tier_2_metric": "Resolve a 2D displacement vector into its orthogonal x and y components using sine and cosine."
                 },
                 {
-                    "name": "Apply SUVAT equations to solve 1D problems",
-                    "tier_1_metric": "Substitute given numerical values into an appropriate SUVAT equation to find a single unknown.",
-                    "tier_2_metric": "Solve multi-step problems involving constant acceleration, including scenarios with initial conditions and changes in motion."
+                    "name": "Projectile Motion Principles",
+                    "tier_1_metric": "State the independence of horizontal and vertical motions in projectile problems.",
+                    "tier_2_metric": "Deconstruct a projectile's initial velocity into horizontal and vertical components for problem-solving."
                 },
                 {
-                    "name": "Analyze free-fall motion",
-                    "tier_1_metric": "Define free fall; state the approximate value and direction of acceleration due to gravity (g).",
-                    "tier_2_metric": "Apply SUVAT equations to problems involving objects falling or thrown vertically under gravity; explain the idealization of neglecting air resistance."
+                    "name": "Horizontal Projectiles",
+                    "tier_1_metric": "Identify initial conditions and assumptions for an object launched horizontally off a cliff.",
+                    "tier_2_metric": "Calculate the time of flight and range of a horizontally launched projectile."
                 },
                 {
-                    "name": "Derive SUVAT equations from v-t graphs (HL)",
-                    "tier_1_metric": "Explain the relationship between the area under a v-t graph and displacement, and the gradient of a v-t graph and acceleration.",
-                    "tier_2_metric": "Derive one or more of the SUVAT equations using graphical methods (e.g., area under a v-t graph for displacement)."
-                }
-            ]
-        },
-        {
-            "name": "Two-Dimensional Motion & Projectiles",
-            "skills": [
-                {
-                    "name": "Resolve vectors into perpendicular components",
-                    "tier_1_metric": "Identify horizontal and vertical components of a velocity or displacement vector given its magnitude and angle.",
-                    "tier_2_metric": "Calculate the magnitude and direction of a resultant vector from its components; apply trigonometry to resolve vectors into components."
+                    "name": "Angled Projectiles",
+                    "tier_1_metric": "Define maximum height, time of flight, and range in the context of symmetric projectile motion.",
+                    "tier_2_metric": "Solve for the maximum height and total horizontal range of a projectile launched at an angle above the horizontal."
                 },
                 {
-                    "name": "Understand the independence of horizontal and vertical motion",
-                    "tier_1_metric": "State that horizontal and vertical motions are independent in projectile motion.",
-                    "tier_2_metric": "Explain why horizontal velocity is constant and vertical motion is uniformly accelerated under gravity for a projectile."
-                },
-                {
-                    "name": "Analyze projectile motion problems",
-                    "tier_1_metric": "Identify initial conditions (launch speed, angle) and target variables (range, maximum height, time of flight) for a projectile.",
-                    "tier_2_metric": "Apply SUVAT equations separately to horizontal and vertical components to calculate range, maximum height, and time of flight for projectiles launched at an angle or horizontally."
-                },
-                {
-                    "name": "Interpret projectile trajectories",
-                    "tier_1_metric": "Describe the parabolic path of a projectile in the absence of air resistance.",
-                    "tier_2_metric": "Compare and contrast trajectories for different launch angles or initial speeds; predict how changes in initial conditions affect the trajectory."
+                    "name": "Relative Velocity in 2D",
+                    "tier_1_metric": "Explain the concept of relative velocity using reference frames (e.g., boat crossing a river or wind affecting a plane).",
+                    "tier_2_metric": "Calculate the resultant velocity vector of a moving body relative to the ground given crosswinds or currents."
                 }
             ]
         }

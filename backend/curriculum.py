@@ -34,7 +34,7 @@ def generate_curriculum(topic_request: str) -> str:
     
     # Initialize the model --> WHERE WE INITIALIZE OUR OWN MODEL
     llm = init_chat_model(
-        "google_genai:gemini-2.5-flash", 
+        "google_genai:gemini-3.5-flash-lite", 
         temperature=0
     )
     

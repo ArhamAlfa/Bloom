@@ -1,0 +1,145 @@
+/* AUTO-GENERATED from project_dictionary/study_engine_subtopic_output.json
+   Faithful copy of the data contract, emitted as a plain JS global so the
+   app runs by just opening index.html (no server, no fetch, no build).
+   Do not edit by hand — regenerate from the JSON if the contract changes.
+   When a backend exists, this file is replaced by fetch('/api/...'). */
+"use strict";
+const BLOOM_STUDY_GRAVITATIONAL = {
+  "subtopic": "Gravitational fields",
+  "intro": {
+    "heading": "What are gravitational fields?",
+    "body": "Every mass warps the space around it into a region of influence — a **gravitational field** — and any other mass that strays into that region feels a pull. Before Newton, gravity was a mystery: how could the Sun reach across a hundred and fifty million kilometres of empty space and hold the Earth in its grip? The field concept reframes the whole question. The Sun does not reach out and grab anything; it fills the surrounding space with a field, and the Earth simply responds to the field at the place where it happens to be. This quietly separates two ideas that used to be tangled together — how a source *creates* a field, and how a second object *responds* to one — and almost everything in this chapter is one of those two ideas in disguise.\n\nOver the next few sections you will turn that picture into something you can calculate with. You will measure the strength of a gravitational field at a point, use Newton's law to find the force between any two masses, and — at Higher Level — track the energy stored in the field so you can handle satellites, orbits, and escaping a planet altogether. It is worth appreciating up front just how *weak* gravity is: the electrical repulsion between two protons is around $10^{36}$ times stronger than their gravitational attraction. Gravity only wins on the largest scales because, unlike charge, mass comes in only one sign — it never cancels, only accumulates — so it is gravity, not the far stronger forces, that assembles planets, stars, and galaxies.\n\nTwo simplifications will make all of this tractable. The first is treating an entire planet as though its whole mass were squashed into a single point at its centre. The second is treating $g$ as constant over the region you care about. Both are astonishingly accurate in the right circumstances — and both eventually break. Knowing *exactly* when each one holds and when it fails is the difference between plugging into formulas and actually understanding gravity, and it is precisely what you will be asked to defend at the end of the topic."
+  },
+  "sections": [
+    {
+      "heading": "Gravitational field strength",
+      "tier_1": {
+        "body": "The **gravitational field strength** $g$ at a point is defined as the gravitational force per unit mass experienced by a small test mass placed there:\n\n$$g = \\frac{F}{m}.$$\n\nRead that definition slowly, because the division is doing something clever. We take the force on a test mass and divide out the very mass it acts on, which leaves a quantity measured in newtons per kilogram, $\\text{N kg}^{-1}$. A 2 kg rock and a 200 kg boulder sitting at the same point feel enormously different forces, yet they report the *same* $g$, because the force is proportional to the mass and the division cancels it. That is the entire point of a field: $g$ is a property of the *location* (and of whatever source produced it), not of whatever you happen to drop in to probe it.\n\nThe units hide a small revelation. $\\text{N kg}^{-1}$ is dimensionally identical to $\\text{m s}^{-2}$ — an acceleration. So the field strength at a point is literally the acceleration a freely falling object gains there, which is why the surface value of Earth's field is quoted interchangeably as $9.8\\ \\text{N kg}^{-1}$ and $9.8\\ \\text{m s}^{-2}$: they are the same number wearing two different hats. That gravitational mass (in $F = mg$) and inertial mass (in $F = ma$) cancel so exactly is a far deeper fact than it looks — it is the observation that eventually led Einstein to general relativity — but at this level you can simply enjoy that free-fall acceleration and field strength are one and the same thing.\n\nFor a source, we usually want a formula rather than a measurement. For a point mass $M$ — or, thanks to a result called the shell theorem, any spherically symmetric body such as a planet — the field strength a distance $r$ from its centre is\n\n$$g = \\frac{GM}{r^2}, \\qquad G = 6.67 \\times 10^{-11}\\ \\text{N m}^2\\,\\text{kg}^{-2}.$$\n\nNotice what governs the field: it grows in direct proportion to the source mass $M$, and it falls off as the *square* of the distance. The single most common mistake in the entire topic is measuring $r$ from the surface of the body instead of from its centre; keep measuring from the centre and most of your errors will vanish before they happen.\n\nA concrete check makes the formula feel real. Take the Earth, with $M = 5.97 \\times 10^{24}\\ \\text{kg}$ and radius $r = 6.37 \\times 10^{6}\\ \\text{m}$. Substituting, $g = (6.67\\times10^{-11})(5.97\\times10^{24}) / (6.37\\times10^{6})^2 \\approx 9.8\\ \\text{N kg}^{-1}$ — the familiar surface value, now *derived* rather than memorised. Swap in the Moon's mass and radius and the identical formula returns about $1.6\\ \\text{N kg}^{-1}$, roughly one-sixth of Earth's, which is exactly why the Apollo astronauts could bound across the lunar surface.",
+        "further_reading": [
+          {
+            "title": "Gravitation (course unit) — Khan Academy",
+            "url": "https://www.khanacademy.org/science/highschool-physics/x6679aa2c65c01e53:gravitation"
+          },
+          {
+            "title": "Gravitational field — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Gravitational_field"
+          }
+        ]
+      },
+      "tier_2": {
+        "body": "The inverse-square law earns its keep the instant you leave the surface. To compare $g$ at two heights you need no new idea — just apply $g = GM/r^2$ twice, staying ruthless about measuring $r$ from the centre. At the summit of Everest, about 8.8 km up, $r$ rises from 6371 km to roughly 6380 km; the ratio $(6371/6380)^2 \\approx 0.997$, so $g$ drops by only about $0.3\\%$. *That* is why 'g is constant' is such a forgivable lie near the ground — over any height a human can climb, $r$ barely changes. Push out to the altitude of the International Space Station (about 400 km), though, and $(6371/6771)^2 \\approx 0.89$: the field there is around $8.7\\ \\text{N kg}^{-1}$, appreciably weaker, which quietly warns you that orbital problems cannot assume constant $g$.\n\nThe field also lets you leap straight to forces. Once you know $g$ at a point, the force on *any* mass placed there is simply $F = mg$ — you never have to touch Newton's full law again for that location. This is the division from the core section run in reverse: $g$ has already packaged up everything about the source and the distance, so an engineer who knows the field at an orbit's radius finds the force on a 500 kg satellite with one multiplication rather than a fresh $GMm/r^2$ calculation.\n\nReal situations rarely have just one source. Because gravity obeys **superposition**, the net field at a point is the *vector* sum of the individual fields from each mass, each computed separately with $g = GM/r^2$ and then added with direction. Somewhere between the Earth and the Moon, for example, the two fields point in opposite directions and partly cancel; at one particular spot (closer to the Moon, since it is the lighter body) they cancel exactly and the net field is zero. Superposition is also what makes the shell theorem tick: a solid planet is nothing but a nested stack of thin shells, and each shell, viewed from outside, pulls exactly as if its mass sat at the centre.",
+        "further_reading": [
+          {
+            "title": "Gravitational fields (A-Level Physics) — YouTube",
+            "url": "https://www.youtube.com/watch?v=24VWITAuHVc"
+          },
+          {
+            "title": "Gravity of Earth (how g varies) — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Gravity_of_Earth"
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Newton's law of gravitation",
+      "tier_1": {
+        "body": "Field strength describes what a source does to the space around it. **Newton's law of universal gravitation** describes the force directly, between any two masses. Every pair of masses in the universe attracts every other pair, with a force\n\n$$F = \\frac{GMm}{r^2},$$\n\nwhere $M$ and $m$ are the two masses and $r$ is the distance between their centres. The word *universal* is not decoration. The same law, with the same constant $G$, governs an apple dropping from a branch, the Moon wheeling around the Earth, and two galaxies drifting into a slow collision. That the physics of the heavens is identical to the physics of the kitchen was Newton's genuinely revolutionary claim, and it is why the law deserves its grand name.\n\nThree features are worth burning into memory. First, the force is *always attractive* — there is no gravitational repulsion, because there is no such thing as negative mass. Second, it is *mutual and equal*: the Earth pulls the apple with precisely the force the apple pulls the Earth (Newton's third law), even though only the apple visibly falls, because that same force produces an utterly negligible acceleration on something as massive as a planet. Third, it acts *along the line joining the two centres*, making gravity a central force — a fact that, further down the line, quietly guarantees that orbits are closed ellipses.\n\nThis is not a rival to the field-strength formula; it is the same physics seen from the other end. Combine $F = mg$ with $F = GMm/r^2$ and the test mass $m$ cancels, leaving $g = GM/r^2$. So the field-strength expression from the previous section is literally Newton's law with the responding mass divided back out. Whenever you are unsure which to reach for, ask what you actually want: the force on one *specific* second mass (use $F = GMm/r^2$), or the field itself, independent of any test mass (use $g = GM/r^2$).\n\nFor a sense of scale, compute the Earth-Moon attraction. With $M_E = 5.97\\times10^{24}\\ \\text{kg}$, $m_{\\text{Moon}} = 7.35\\times10^{22}\\ \\text{kg}$, and separation $r = 3.84\\times10^{8}\\ \\text{m}$:\n\n$$F = \\frac{(6.67\\times10^{-11})(5.97\\times10^{24})(7.35\\times10^{22})}{(3.84\\times10^{8})^2} \\approx 2.0\\times10^{20}\\ \\text{N}.$$\n\nThat one number is the force holding the Moon in orbit — the tension in an invisible rope 384,000 km long — and, by Newton's third law, it is also exactly the force the Moon uses to heave Earth's oceans up and down as tides.",
+        "further_reading": [
+          {
+            "title": "Newton's law of universal gravitation — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Newton%27s_law_of_universal_gravitation"
+          },
+          {
+            "title": "Newton's law of gravitation (video) — Khan Academy",
+            "url": "https://www.khanacademy.org/science/highschool-physics/x6679aa2c65c01e53:gravitation/x6679aa2c65c01e53:newtons-law-of-gravitation/v/newtons_law_of_gravitation"
+          }
+        ]
+      },
+      "tier_2": {
+        "body": "With more than two bodies, the net gravitational force on one mass is the **vector sum** of the pulls from all the others: compute each pairwise force with $F = GMm/r^2$ and add them head-to-tail, keeping direction. The textbook case is a mass sitting between two others — if they lie on opposite sides the forces subtract, and if they sit at right angles you combine them with Pythagoras. This is exactly how the net pull on a spacecraft threading the gap between Earth and Moon is found, and it is also why the innocent-looking *three-body problem* — merely three masses tugging on one another — has no tidy closed-form solution and generally has to be handed to a computer.\n\nBecause $F$ depends on $1/r^2$, small changes in distance have leveraged consequences, and examiners adore testing whether you feel this in your bones. Halve the separation and the force *quadruples*; triple it and the force falls to a *ninth*. The cleanest way to handle any 'what happens to $F$ if...' question is to work in ratios: for fixed masses, $F_2/F_1 = (r_1/r_2)^2$, so $G$ and the actual masses drop out entirely and you are left with a one-line answer. Training yourself to reason in ratios turns a page of arithmetic into a single mental step.\n\nOne assumption we have quietly leaned on all along finally deserves its name: treating a planet as a point mass at its centre. Newton proved (the **shell theorem**) that a uniform spherical shell attracts an external object exactly as if all its mass were concentrated at the centre — and, remarkably, exerts *zero* net force on anything inside it. A solid planet is a nested stack of such shells, so from the outside it behaves precisely like a point, which is why every formula so far has simply worked. Step *inside* the body, though, and the shells above you stop pulling: the field begins falling toward zero as you approach the centre, and the neat $GM/r^2$ formula silently breaks. Hold onto that failure — it is one of the approximations the capstone will lean on you to defend.",
+        "further_reading": [
+          {
+            "title": "Shell theorem — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Shell_theorem"
+          },
+          {
+            "title": "Three-body problem — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Three-body_problem"
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Gravitational potential and potential energy (HL)",
+      "tier_1": {
+        "body": "So far we have tracked forces and fields — vectors, with awkward directions to keep straight. **Potential** is the scalar bookkeeping of exactly the same field, and for anything involving energy it is far kinder to work with. The gravitational potential $V$ at a point is defined as the work done per unit mass to bring a small test mass from infinity to that point:\n\n$$V = -\\frac{GM}{r}.$$\n\nLike $g$, it is defined *per unit mass*, so it too describes the field itself rather than any particular object dropped into it. Its units are joules per kilogram, $\\text{J kg}^{-1}$.\n\nThe minus sign is neither a typo nor a convention you may quietly drop — it is physics. We choose potential to be zero at infinity, infinitely far from every mass. Since gravity is attractive, a mass drifting inward from infinity speeds up, the field does *positive* work on it, and its energy therefore sinks *below* the zero we set at infinity. Equivalently: you would have to do positive work to drag the mass back out. So every point in a real gravitational field sits inside a **potential well** of negative $V$ — deepest (most negative) right next to the mass, and rising toward zero as $r \\to \\infty$.\n\nMultiply potential by an actual mass and you recover the gravitational potential energy of that mass in the field: $E_p = mV = -\\dfrac{GMm}{r}$. This is the full, honest expression for gravitational potential energy. The familiar $E_p = mgh$ from earlier years is merely its *near-surface approximation*, valid only where $g$ is roughly constant and where all that matters is the change in height. The negative sign persists: a satellite in orbit has negative potential energy, and the question 'how much energy to escape?' becomes the tidy 'how much to climb out of the well, back up to zero?'.\n\nField and potential are two descriptions of one object, bound together by how quickly the potential changes with position:\n\n$$g = -\\frac{dV}{dr}.$$\n\nThe field is the *negative gradient* — the slope — of the potential. The minus sign says the field points 'downhill', toward lower (more negative) potential, which is exactly the direction things fall. Draw the equipotential surfaces (spheres of constant $V$ around a planet) and the field always pierces them at right angles, running from high potential to low.",
+        "further_reading": [
+          {
+            "title": "Gravitational potential — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Gravitational_potential"
+          },
+          {
+            "title": "Gravitation (course unit) — Khan Academy",
+            "url": "https://www.khanacademy.org/science/highschool-physics/x6679aa2c65c01e53:gravitation"
+          }
+        ]
+      },
+      "tier_2": {
+        "body": "The reward for working with potential is that *work becomes subtraction*. The work done moving a mass $m$ between two points is $W = m\\Delta V = m(V_2 - V_1)$: evaluate $V = -GM/r$ at each point and take the difference — no integrating of a varying force required. Because potential is a scalar, there is no vector bookkeeping and, crucially, the path taken does not matter (gravity is a conservative force); only the two endpoints count. To raise a 1000 kg satellite from a low orbit to a higher one, you find $\\Delta V$ between the two radii and multiply, and the messy, continuously changing force has already been absorbed into the potential for you.\n\nThe link $g = -dV/dr$ runs both directions. Handed a graph or an expression for $V(r)$, you recover the field by taking the gradient: differentiate $V = -GM/r$ and out drops $g = -GM/r^2$, the sign merely encoding 'inward'. On a $V$-versus-$r$ graph the field strength at any point is simply the *steepness* of the curve there — steep well walls close to the planet signal a strong field, and the curve flattening far away signals a weak one. A perennial exam move is to hand you a potential graph and ask for the field, which is nothing more than 'find the gradient'.\n\nFor several masses, potentials add as plain *signed numbers* — no vectors — precisely because $V$ is a scalar. The combined potential at a point is just $\\sum -GM_i/r_i$, which is dramatically less painful than summing field vectors and is the real reason energy methods so often beat force methods for multi-body problems. Trace out the points of equal total $V$ and you have mapped the equipotential surfaces; between two masses they buckle from neat spheres into more elaborate shapes, and everywhere the field still cuts them at right angles.",
+        "further_reading": [
+          {
+            "title": "Gravitational fields (A-Level Physics) — YouTube",
+            "url": "https://www.youtube.com/watch?v=24VWITAuHVc"
+          },
+          {
+            "title": "Gravitational energy — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Gravitational_energy"
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Orbits, energy and escape speed (HL)",
+      "tier_1": {
+        "body": "An orbit is the elegant special case where gravity spends all its effort turning you sideways rather than speeding you up or slowing you down. A satellite in a circular orbit is in permanent *free fall* — accelerating toward the planet the whole time — yet it is moving sideways so fast that the planet's surface curves away beneath it just as quickly as it falls, so it never actually gets any closer. Setting gravity equal to the centripetal force required to hold that circle, $\\dfrac{GMm}{r^2} = \\dfrac{mv^2}{r}$, gives the orbital speed $v = \\sqrt{GM/r}$: lower orbits are *faster*, which is why the ISS laps the Earth every ninety minutes while the far more distant Moon takes a month.\n\nAn orbiting body carries two kinds of energy at once. Its kinetic energy, using that orbital speed, is $E_k = \\tfrac{1}{2}mv^2 = \\dfrac{GMm}{2r}$, and its potential energy, from the previous section, is $E_p = -\\dfrac{GMm}{r}$. Add them for the total mechanical energy:\n\n$$E = E_k + E_p = \\frac{GMm}{2r} - \\frac{GMm}{r} = -\\frac{GMm}{2r}.$$\n\nThat the total comes out *negative* is the signature of a **bound** orbit — the satellite is trapped in the potential well and cannot leave without an injection of extra energy. Notice also that the kinetic energy is exactly half the magnitude of the potential energy; this tidy relationship (a form of the virial theorem) turns up again and again across physics.\n\nTo *escape* means to climb all the way out of the well to infinity, where both kinetic and potential energy fall to zero — that is, to reach a total energy of zero. Set the launch energy to just barely achieve it, $\\tfrac{1}{2}mv_{\\text{esc}}^2 - \\dfrac{GMm}{r} = 0$, and once again the mass cancels:\n\n$$v_{\\text{esc}} = \\sqrt{\\frac{2GM}{r}}.$$\n\nFrom Earth's surface this works out to about $11.2\\ \\text{km s}^{-1}$ (roughly 40,000 km/h), and — because the mass cancelled — it is identical for a marble and a spacecraft. It is also exactly $\\sqrt{2}$ times the circular orbital speed at the same radius, a handy self-check. Run the numbers for the Moon and you get only about $2.4\\ \\text{km s}^{-1}$, which is precisely why the Moon could never hold onto an atmosphere: its gas molecules would routinely exceed that speed and leak away into space, while Earth, with its far higher escape speed, kept hers.",
+        "further_reading": [
+          {
+            "title": "Escape velocity — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Escape_velocity"
+          },
+          {
+            "title": "Gravitation (course unit) — Khan Academy",
+            "url": "https://www.khanacademy.org/science/highschool-physics/x6679aa2c65c01e53:gravitation"
+          }
+        ]
+      },
+      "tier_2": {
+        "body": "The real power of the energy picture appears the moment you *change* orbits. Since the total energy is $E = -GMm/2r$, a higher orbit (larger $r$) is *less negative* — that is, higher energy — so lifting a satellite to a higher orbit demands that you *add* energy, even though it ends up travelling more slowly (the famous orbital paradox that, over time, you speed up in order to slow down). To move between two circular orbits you simply compute the energy of each, $-GMm/2r_1$ and $-GMm/2r_2$, and the difference is the work the engines must supply. This energy accounting is the backbone of every genuine mission plan, from parking a communications satellite in geostationary orbit to flinging a probe toward Mars.\n\nThe *sign* of the total energy sorts every possible trajectory into three families. Negative total energy means **bound** — a closed ellipse or circle, trapped indefinitely. Exactly zero means the object *just barely* escapes, coasting out to infinity with nothing to spare, tracing a parabola (this is the escape-speed case). Positive total energy means **unbound** — a hyperbola, arriving at infinity with speed still left over, like an interstellar visitor merely passing through the solar system. So 'will it escape?' is never a matter of intuition; it is the flat question of whether you have supplied enough energy to lift the total from negative up to zero.\n\nMade concrete: to raise a 1000 kg satellite from a 7000 km orbit to a 14,000 km orbit, write $E_1 = -GMm/2r_1$ and $E_2 = -GMm/2r_2$, so the energy required is $GMm\\left(\\dfrac{1}{2r_1} - \\dfrac{1}{2r_2}\\right)$. Doubling $r$ halves the depth of the well, so you must supply exactly half of $GMm/2r_1$ worth of energy — a clean result you could never have reached by tracking the continuously varying force through the climb. This is the very kind of multi-step, cross-concept reasoning the capstone will ask you to perform *and then defend out loud*.",
+        "further_reading": [
+          {
+            "title": "Orbital mechanics — Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Orbital_mechanics"
+          },
+          {
+            "title": "Gravitational fields (A-Level Physics) — YouTube",
+            "url": "https://www.youtube.com/watch?v=24VWITAuHVc"
+          }
+        ]
+      }
+    }
+  ],
+  "capstone": {
+    "heading": "Bringing it together: where the models break",
+    "body": "Everything up to this point has quietly leaned on two approximations that work so well you stop noticing them: treating an entire planet as a single point mass at its centre, and treating $g$ as constant. The Tier 3 defense is not about recomputing any of these formulas — it is about *judgment*. It asks whether you know exactly where these models can be trusted, where they fail, and whether you can hold that position while someone probes it. This section carries no new equations; it only sharpens your thinking about the ones you already have.\n\nStart with the constant-$g$ model — $E_p = mgh$ with $g = 9.8$. It is really just a first-order approximation, trustworthy only when your change in height is tiny compared with the planet's radius. Over a building or even a mountain, $r$ changes by well under $1\\%$, so $mgh$ is superb. Over hundreds of kilometres — a rocket ascent, a satellite's orbit — $r$ changes by tens of percent, $g$ is visibly weaker, and $mgh$ overestimates the energy badly; there you *must* switch to the full $-GMm/r$ potential. A defensible answer names the *criterion* (height much less than radius), not merely the verdict, and can even quantify the error: at ISS altitude, assuming the surface value of $g$ overstates it by roughly $12\\%$.\n\nThe point-mass idealisation, justified by the shell theorem, holds *perfectly* outside a spherically symmetric body — which is exactly why it never let us down anywhere above the surface. It breaks in two situations worth being able to spot instantly. *Inside* the body, the shells above you contribute nothing, so the field falls linearly toward zero at the centre — and $g = GM/r^2$ would absurdly predict an infinite field there instead. And for *non-spherical or non-uniform* bodies — a lumpy asteroid, an oblate spinning planet — the field near the surface genuinely is not radial, and no single point at the centre can capture it. When you are asked 'does $GM/r^2$ apply here?', you are really being asked 'is the body spherical, and am I standing outside it?'.\n\nThe richest capstone task chains several ideas at once: take a satellite between two orbits and account for the energy honestly. You would reach for $E = -GMm/2r$ at each radius, recognise that the higher orbit carries *more* (less negative) energy despite its *lower* speed, compute the difference as the work the engines must do, and stand ready to explain the apparent paradox that adding energy makes the satellite go slower. A strong defense does not recite three separate formulas; it stitches orbital speed, kinetic energy, potential energy, and the sign of the total energy into one coherent story and can pull on any thread when pressed.\n\nFinally, expect to be handed a confident-sounding statement and asked to judge it. The classic is 'astronauts float because there is no gravity in space'. It is wrong, and being able to say *why* crisply is the whole skill. At the ISS's altitude $g$ is still about $8.7\\ \\text{N kg}^{-1}$ — nearly $90\\%$ of its surface value — so there is plenty of gravity up there. Astronauts float because they and their station are both in continuous free fall, orbiting together, so there is no *contact* force pressing between them; it is weightlessness, not gravity-lessness. Catching the hidden error in a plausible claim, and correcting it with a number *and* a mechanism, is exactly what Tier 3 rewards.",
+    "further_reading": [
+      {
+        "title": "Weightlessness — Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Weightlessness"
+      },
+      {
+        "title": "Gravitational fields (A-Level Physics) — YouTube",
+        "url": "https://www.youtube.com/watch?v=24VWITAuHVc"
+      }
+    ]
+  }
+};

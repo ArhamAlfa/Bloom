@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom — Exit</title>
+
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="side">
+
+      <div class="brand">
+        <span id="brand-mark"></span>
+        <div>
+          <div class="brand-name">Bloom</div>
+          <div class="brand-sub">Pathway</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" data-nav="dashboard" href="dashboard.html"><span class="ni-slot"
+            data-icon="dash"></span><span>Dashboard</span></a>
+        <a class="nav-item" data-nav="curriculum" href="curriculum.html"><span class="ni-slot"
+            data-icon="curric"></span><span>Curriculum</span></a>
+      </nav>
+
+      <div class="side-mastery">
+        <div class="side-cap">Current tier</div>
+        <div class="side-tier" id="side-tier"></div>
+        <div class="xp mini">
+          <div class="xp-fill" id="side-xp"></div>
+        </div>
+        <div class="side-sub" id="side-sub"></div>
+      </div>
+
+      <nav class="tree" id="side-tree"></nav>
+
+      <div class="side-foot">
+        <a class="nav-item" data-nav="exit" href="exit.html"><span class="ni-slot"
+            data-icon="exit"></span><span>Exit</span></a>
+        <div class="demo-state" id="demo-state"></div>
+      </div>
+    </aside>
+
+
+    <!-- ================= Main column: save & quit ================= -->
+    <main class="main">
+      <div class="exit-panel panel">
+        <h2 style="font-family:var(--serif); font-size:22px; margin-bottom:8px">Save &amp; exit</h2>
+        <p class="muted" style="margin:0 0 20px">Progress is saved automatically as we go, so it will still be here next
+          time. We can resume this session from the splash screen.</p>
+        <div class="actions-row" style="justify-content:center; margin:0">
+          <a class="btn primary" href="index.html">Save &amp; quit</a>
+          <a class="btn ghost" href="dashboard.html">Cancel</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- Shared content, progress, helpers, sidebar -->
+  <script src="data/curriculum.js"></script>
+  <script src="data/study.gravitational.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/render-helpers.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- This page's own behaviour -->
+  <script>
+    "use strict";
+
+    /* Nothing to do here but fill the sidebar — both buttons are plain links. */
+    const progress = load_progress();
+    fill_sidebar('exit', progress, null, null);
+  </script>
+</body>
+
+</html>
