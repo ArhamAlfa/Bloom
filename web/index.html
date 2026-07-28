@@ -62,6 +62,7 @@
 
   <!-- This page's own behaviour -->
   <script>
+    
     "use strict";
 
     /* ============================================================
@@ -77,18 +78,56 @@
     document.getElementById('landing-flower').innerHTML = flower_svg(0, LANDING_FLOWER_SIZE);
     document.getElementById('topic-input').value = USER_QUERY;
 
+    // 💥 ADDED: Wipe old session cache when landing on this page to prevent ghost data
+    localStorage.removeItem('bloom_live_curriculum');
+    sessionStorage.removeItem('bloom_session_cache');
 
-    /* Naming a topic wipes any leftover progress and opens the dashboard. */
-    document.getElementById('topic-form').addEventListener('submit', function (submit_event) {
+    /* Naming a topic generates the curriculum, saves it, and opens the dashboard. */
+    // 💥 MODIFIED: Changed to an async function to wait for FastAPI
+    document.getElementById('topic-form').addEventListener('submit', async function (submit_event) {
       submit_event.preventDefault();
 
-      save_progress(make_fresh_progress());
-      window.location.href = 'dashboard.html';
+      const topic_input = document.getElementById('topic-input');
+      const submit_button = document.querySelector('.entry-send');
+      const user_prompt = topic_input.value.trim();
+
+      if (!user_prompt) return;
+
+      // 💥 ADDED: Visual feedback so you know it's thinking
+      submit_button.disabled = true;
+      submit_button.textContent = "⏳"; 
+
+      try {
+        // 💥 ADDED: The backend call
+        const response = await fetch('http://localhost:8000/api/build-pathway', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: user_prompt })
+        });
+
+        if (!response.ok) throw new Error('Backend generation failed');
+
+        const data = await response.json();
+
+        // 💥 ADDED: Save the live AI data to the browser for data.js to read
+        localStorage.setItem('bloom_live_curriculum', JSON.stringify(data.curriculum));
+        sessionStorage.setItem('bloom_session_cache', JSON.stringify(data.study_guides));
+
+        // 👇 YOUR PARTNER's ORIGINAL REDIRECT LOGIC 👇
+        save_progress(make_fresh_progress());
+        window.location.href = 'dashboard.html';
+
+      } catch (error) {
+        console.error("Pipeline error:", error);
+        alert("Failed to generate AI data. Check backend terminal.");
+        submit_button.disabled = false;
+        submit_button.textContent = "→";
+      }
     });
 
 
     /* ============================================================
-       The intro animation.
+       The intro animation. (UNCHANGED)
 
        The line is stored as a flat list of numbers — x, y, x, y … — because
        that makes it easy to blend one shape into another: we just slide every
@@ -286,6 +325,4 @@
 
     start_intro();
   </script>
-</body>
-
-</html>
+</body></html>

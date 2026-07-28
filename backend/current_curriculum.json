@@ -1,95 +1,82 @@
 {
     "topic": "Kinematics",
+    "user_query": "kinematics ib",
     "subtopics": [
         {
-            "name": "1D Motion Fundamentals",
+            "subtopic": "Introduction to Kinematics",
             "skills": [
                 {
-                    "name": "Position, Distance, and Displacement",
-                    "tier_1_metric": "Define scalar versus vector quantities and state the SI units for position, distance, and displacement.",
-                    "tier_2_metric": "Calculate total distance and net displacement from a given position-time data set for a moving object."
+                    "skill": "Define key kinematic terms",
+                    "tier_1": "Understand and define terms such as displacement, velocity, acceleration, and time.",
+                    "tier_2": "Apply definitions to identify these quantities in various physical scenarios."
                 },
                 {
-                    "name": "Average and Instantaneous Speed",
-                    "tier_1_metric": "Explain the difference between average speed and instantaneous speed using everyday examples.",
-                    "tier_2_metric": "Compute average speed and solve for missing variables using total distance and total time elapsed."
-                },
-                {
-                    "name": "Average and Instantaneous Velocity",
-                    "tier_1_metric": "Define average velocity mathematically as the change in position over change in time.",
-                    "tier_2_metric": "Differentiate between average velocity and average speed in scenarios involving directional changes."
-                },
-                {
-                    "name": "Uniform Acceleration",
-                    "tier_1_metric": "Identify the defining characteristics of motion with constant acceleration.",
-                    "tier_2_metric": "Solve for final velocity or time given initial conditions under uniform acceleration."
-                },
-                {
-                    "name": "Kinematic Equations for Constant Acceleration",
-                    "tier_1_metric": "List the four primary kinematic equations relating displacement, velocity, acceleration, and time.",
-                    "tier_2_metric": "Select and execute the appropriate kinematic equation to solve an unknown variable in a vertical drop scenario."
+                    "skill": "Differentiate between scalar and vector quantities",
+                    "tier_1": "Recognize the difference between scalar and vector quantities.",
+                    "tier_2": "Classify physical quantities as scalar or vector in complex problems."
                 }
-            ]
+            ],
+            "capstone": {
+                "heading": "Bringing it together",
+                "body": "Create a glossary of kinematic terms with examples illustrating scalar and vector quantities."
+            }
         },
         {
-            "name": "Graphical Analysis of Motion",
+            "subtopic": "Equations of Motion",
             "skills": [
                 {
-                    "name": "Position-Time Graphs",
-                    "tier_1_metric": "Identify how stationary, constant velocity, and accelerating motion appear on a position-time graph.",
-                    "tier_2_metric": "Calculate instantaneous velocity at a specific point by finding the slope of the tangent on a position-time curve."
+                    "skill": "Derive the equations of motion",
+                    "tier_1": "Understand the derivation of the three equations of motion for uniformly accelerated linear motion.",
+                    "tier_2": "Apply the equations to solve problems involving objects in linear motion."
                 },
                 {
-                    "name": "Velocity-Time Graphs",
-                    "tier_1_metric": "State what the slope and the area under a velocity-time graph represent.",
-                    "tier_2_metric": "Differentiate between periods of constant acceleration and changing acceleration by analyzing the shape of a velocity-time graph."
-                },
-                {
-                    "name": "Acceleration-Time Graphs",
-                    "tier_1_metric": "Define acceleration-time graph features and state the meaning of the area under the curve.",
-                    "tier_2_metric": "Construct a velocity-time graph by analyzing and integrating data from a given acceleration-time graph."
-                },
-                {
-                    "name": "Interpreting Interconnected Motion Graphs",
-                    "tier_1_metric": "Match corresponding points across position-time, velocity-time, and acceleration-time graphs for simple motion.",
-                    "tier_2_metric": "Deconstruct a complex multi-stage journey to translate a position-time graph into its corresponding velocity-time graph."
-                },
-                {
-                    "name": "Relative Motion Graphs",
-                    "tier_1_metric": "Explain how relative motion between two objects is represented on a shared graph.",
-                    "tier_2_metric": "Compare two objects' motion curves on a single velocity-time graph to determine when and where they meet."
+                    "skill": "Solve problems using equations of motion",
+                    "tier_1": "Identify which equation of motion to use for a given problem.",
+                    "tier_2": "Solve complex problems involving multiple steps and variables using equations of motion."
                 }
-            ]
+            ],
+            "capstone": {
+                "heading": "Bringing it together",
+                "body": "Solve a comprehensive problem set that involves deriving and applying equations of motion to real-world scenarios."
+            }
         },
         {
-            "name": "Vectors in 2D Kinematics",
+            "subtopic": "Graphical Analysis of Motion",
             "skills": [
                 {
-                    "name": "Vector Addition and Resolution",
-                    "tier_1_metric": "Define vector components and identify trigonometric relationships used for right-triangle resolution.",
-                    "tier_2_metric": "Resolve a 2D displacement vector into its orthogonal x and y components using sine and cosine."
+                    "skill": "Interpret motion graphs",
+                    "tier_1": "Identify and describe motion from position-time, velocity-time, and acceleration-time graphs.",
+                    "tier_2": "Analyze and interpret complex motion graphs to determine motion characteristics."
                 },
                 {
-                    "name": "Projectile Motion Principles",
-                    "tier_1_metric": "State the independence of horizontal and vertical motions in projectile problems.",
-                    "tier_2_metric": "Deconstruct a projectile's initial velocity into horizontal and vertical components for problem-solving."
-                },
-                {
-                    "name": "Horizontal Projectiles",
-                    "tier_1_metric": "Identify initial conditions and assumptions for an object launched horizontally off a cliff.",
-                    "tier_2_metric": "Calculate the time of flight and range of a horizontally launched projectile."
-                },
-                {
-                    "name": "Angled Projectiles",
-                    "tier_1_metric": "Define maximum height, time of flight, and range in the context of symmetric projectile motion.",
-                    "tier_2_metric": "Solve for the maximum height and total horizontal range of a projectile launched at an angle above the horizontal."
-                },
-                {
-                    "name": "Relative Velocity in 2D",
-                    "tier_1_metric": "Explain the concept of relative velocity using reference frames (e.g., boat crossing a river or wind affecting a plane).",
-                    "tier_2_metric": "Calculate the resultant velocity vector of a moving body relative to the ground given crosswinds or currents."
+                    "skill": "Draw motion graphs",
+                    "tier_1": "Sketch basic motion graphs from given data or descriptions.",
+                    "tier_2": "Create detailed motion graphs that accurately represent complex motion scenarios."
                 }
-            ]
+            ],
+            "capstone": {
+                "heading": "Bringing it together",
+                "body": "Analyze a set of motion graphs to determine the type of motion and create a narrative description of the motion."
+            }
+        },
+        {
+            "subtopic": "Projectile Motion",
+            "skills": [
+                {
+                    "skill": "Understand the components of projectile motion",
+                    "tier_1": "Describe the horizontal and vertical components of projectile motion.",
+                    "tier_2": "Analyze projectile motion by separating it into horizontal and vertical components."
+                },
+                {
+                    "skill": "Solve projectile motion problems",
+                    "tier_1": "Apply basic equations to solve simple projectile motion problems.",
+                    "tier_2": "Solve complex projectile motion problems involving multiple variables and constraints."
+                }
+            ],
+            "capstone": {
+                "heading": "Bringing it together",
+                "body": "Design and solve a real-world problem involving projectile motion, considering both horizontal and vertical components."
+            }
         }
     ]
 }

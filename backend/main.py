@@ -1,85 +1,116 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
-
-
 import os
 import asyncio
 
-# Import the engine you just built
-from curriculum import generate_curriculum
-from study_guide import generate_all_study_guides # Add this line
+# Engine Imports from your custom module
+from curriculum_study_engine.curriculum import generate_curriculum
+from curriculum_study_engine.study_guide import generate_all_study_guides
 
-# Set this to True to save tokens during frontend development!
-USE_MOCK_LLM = True
+# ============================================================
+# ⚙️ CONFIGURATION TOGGLE
+# Set to True  -> Instant offline mock responses (0 API calls/tokens)
+# Set to False -> Live generation (OpenAI + Gemini)
+# ============================================================
+USE_MOCK_LLM = False
 
 app = FastAPI()
 
-# This CORS middleware is mandatory so your local HTML file is allowed to talk to this local server
+# Enable CORS for local web server communication (e.g., port 3000 to port 8000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for local development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Define what the incoming request from the frontend should look like
 class TopicRequest(BaseModel):
     topic: str
 
-# @app.post("/api/curriculum")
-# async def create_curriculum(request: TopicRequest):
-#     print(f"Received request to build curriculum for: {request.topic}")
+
+# ============================================================
+# ⚙️ CONFIGURATION TOGGLES (Granular Control)
+# Set to True  -> Reads local JSON file (0 tokens used)
+# Set to False -> Runs live API generation
+# ============================================================
+USE_MOCK_CURRICULUM = False   # Turns off OpenAI, reads current_curriculum.json
+USE_MOCK_STUDY_GUIDE = False # Leaves Gemini ON to test concurrency fixes --> CURRENTLY USING OPENAI CUZ GEMINI IS A BUM
+
+@app.post("/api/build-pathway")
+async def build_full_pathway(request: TopicRequest):
+    print(f"\n🌱 Pathway build requested for topic: '{request.topic}'")
     
-#     # 1. Call your Gemini engine
-#     raw_json_string = generate_curriculum(request.topic)
-    
-#     # 2. Parse the string into a Python dictionary
-#     curriculum_data = json.loads(raw_json_string)
-    
-#     # 3. BACKGROUND WRITE: Save the dictionary to a local file for debugging --> THIS IS WHERE A FILE NAMED CURRENT_CURRICULUM.JSON WILL APPEAR IN THE WORKSPACE WITH THE CURRENT CURRICULUM
-#     # Using "w" mode means it will overwrite the file every time a new topic is generated
-#     with open("current_curriculum.json", "w", encoding="utf-8") as f:
-#         json.dump(curriculum_data, f, indent=4)
-    
-#     # 4. FastAPI automatically serializes this dictionary back into a clean JSON response
-#     return curriculum_data  
+    try:
+        # ---------------------------------------------------------
+        # STEP 1: CURRICULUM ENGINE (OpenAI)
+        # ---------------------------------------------------------
+        if USE_MOCK_CURRICULUM:
+            print("🟢 MOCK MODE: Loading Curriculum from local cache (0 OpenAI tokens)...")
+            await asyncio.sleep(0.5) # Simulate slight network delay
+            with open("current_curriculum.json", "r", encoding="utf-8") as f:
+                curriculum_data = json.load(f)
+        else:
+            print("1️⃣ LIVE MODE: Generating Curriculum with OpenAI...")
+            curriculum_data = generate_curriculum(request.topic)
+            
+        # ---------------------------------------------------------
+        # STEP 2: STUDY ENGINE (Gemini)
+        # ---------------------------------------------------------
+        if USE_MOCK_STUDY_GUIDE:
+            print("🟢 MOCK MODE: Loading Study Guides from local cache (0 Gemini tokens)...")
+            await asyncio.sleep(0.5)
+            with open("master_study_guide.json", "r", encoding="utf-8") as f:
+                master_study_data = json.load(f)
+        else:
+            print("2️⃣ LIVE MODE: Generating Study Guides with Gemini...")
+            master_study_data = await generate_all_study_guides()
+            
+        # ---------------------------------------------------------
+        # STEP 3: RETURN PAYLOAD
+        # ---------------------------------------------------------
+        return {
+            "status": "success",
+            "curriculum": curriculum_data,
+            "study_guides": master_study_data
+        }
+        
+    except Exception as e:
+        print(f"❌ Server Error during pipeline execution: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
-# FOR THE PURPOSES OF NOT BURNING OUR DAMN TOKENS THIS IS A MOCK APP.POST
-# ==========================================
-# STUDY ENGINE ENDPOINT
-# ==========================================
+# ============================================================
+# 🛠️ INDIVIDUAL ENDPOINTS (For isolated testing & legacy calls)
+# ============================================================
 
 @app.post("/api/curriculum")
-async def generate_curriculum(request_data: dict):
-    print("🟢 MOCK MODE: Returning fake CURRICULUM data (0 tokens used).")
-    
-    await asyncio.sleep(1) 
-    
-    # Ensure this path matches your folder structure perfectly
-    mock_file_path = os.path.join("current_curriculum.json")
-    
-    with open(mock_file_path, "r", encoding="utf-8") as file:
-        mock_curriculum_data = json.load(file)
-        
-    return mock_curriculum_data
-
-
-# ==========================================
-# LIVE STUDY ENGINE ENDPOINT
-# ==========================================
-@app.post("/api/generate")
-async def create_study_guides():
-    # Deleted the os.path.exists lock from here!
-    print("⚡ Triggering concurrent Study Guide generation...")
+async def create_curriculum_standalone(request: TopicRequest):
+    if USE_MOCK_LLM:
+        print("🟢 MOCK MODE: Returning current_curriculum.json")
+        await asyncio.sleep(0.5)
+        with open("current_curriculum.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+            
+    print(f"⚡ LIVE MODE: Generating standalone curriculum for '{request.topic}'")
     try:
-        master_json = await generate_all_study_guides()
-        return master_json
+        return generate_curriculum(request.topic)
     except Exception as e:
-        print(f"❌ Server Error: {e}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/generate")
+async def create_study_guides_standalone():
+    if USE_MOCK_LLM:
+        print("🟢 MOCK MODE: Returning master_study_guide.json")
+        await asyncio.sleep(0.5)
+        with open("master_study_guide.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+            
+    print("⚡ LIVE MODE: Triggering concurrent Study Guide generation...")
+    try:
+        return await generate_all_study_guides()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

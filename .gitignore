@@ -4,3 +4,4 @@ backend/venv/
 __pycache__/
 backend/current_curriculum.json
 backend/master_study_guide.json
+*.pyc

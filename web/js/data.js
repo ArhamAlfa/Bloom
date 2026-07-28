@@ -35,10 +35,14 @@
    Checks local storage for a live API response first. 
    If missing, falls back to the offline schema fixture.
    ============================================================ */
+
+
 const cached_curriculum = localStorage.getItem('bloom_live_curriculum');
 
 // Parse the live data if it exists, otherwise use the offline mock from curriculum.js
 const raw_curriculum = cached_curriculum ? JSON.parse(cached_curriculum) : BLOOM_CURRICULUM;
+
+
 
 const TOPIC = raw_curriculum.topic;
 const USER_QUERY = raw_curriculum.user_query;
@@ -97,70 +101,75 @@ const TIER_NAMES = {
 // } --> REPLACED
 
 
-/* ============================================================
-   THE MASTER STUDY ENGINE CLIENT
-   Fetches the generated master_study_guide.json from the 
-   FastAPI backend and updates the SUBTOPICS array.
-   ============================================================ */
-
 const STUDY_BY_NAME = {};
 
 /* ============================================================
-   THE UPGRADED STUDY ENGINE CLIENT (SESSION CACHING)
-   Generates fresh on a new tab, but caches page-to-page.
+   STUDY ENGINE CLIENT (ADAPTER ENHANCED)
+   Reads pre-generated JSON and maps LLM output to UI models.
    ============================================================ */
-
 async function fetch_study_data(subtopic_object) {
   const targetName = subtopic_object.subtopic || subtopic_object.name;
-  console.log(`⏳ study.html requested data for: ${targetName}`);
+  console.log(`⏳ study.html loading data for: ${targetName}`);
 
-  let masterData = null;
-  
-  // 1. Check if we already generated data during this specific browser session
   const sessionData = sessionStorage.getItem("bloom_session_cache");
 
-  if (sessionData) {
-      console.log("📦 Found data in active session cache! Skipping backend call.");
-      masterData = JSON.parse(sessionData);
-  } else {
-      // 2. If it is a fresh session, command the backend to run the AI
-      console.log("⚡ New session! Reaching out to FastAPI to generate fresh AI data...");
-      try {
-          const response = await fetch('http://localhost:8000/api/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' }
+  if (!sessionData || sessionData === "undefined" || sessionData === "null") {
+      console.error("❌ No valid study data found. Redirecting to home page...");
+      window.location.href = 'index.html'; 
+      return null;
+  }
+
+  try {
+      const masterData = JSON.parse(sessionData);
+
+      if (masterData && masterData.study_guides) {
+          // 1. Find matching guide (handles both wrapped and unwrapped JSON)
+          let matchedEntry = masterData.study_guides.find(guide => {
+              const item = guide.study_guide || guide;
+              return item.subtopic === targetName;
           });
-          
-          if (!response.ok) throw new Error('Backend returned ' + response.status);
-          
-          masterData = await response.json();
-          
-          // Save the fresh data to the browser's session storage
-          sessionStorage.setItem("bloom_session_cache", JSON.stringify(masterData));
-          
-      } catch (error) {
-          console.error("❌ Backend fetch failed:", error);
-          return null;
+
+          // Fallback if exact match fails
+          if (!matchedEntry && masterData.study_guides.length > 0) {
+              console.warn(`⚠️ Exact name match not found for ${targetName}. Using first guide in list.`);
+              matchedEntry = masterData.study_guides[0];
+          }
+
+          if (matchedEntry) {
+              // 2. Unwrap nested "study_guide" object if present
+              let guide = matchedEntry.study_guide || matchedEntry;
+
+              // 3. Map "skills" array to "sections" so study.html doesn't crash on .forEach()
+              if (!guide.sections && guide.skills) {
+                  guide.sections = guide.skills.map(s => ({
+                      heading: s.skill,
+                      tier_1: s.tier_1,
+                      tier_2: s.tier_2,
+                      content: s.content || null
+                  }));
+              }
+
+              // 4. Guarantee intro object exists
+              if (!guide.intro) {
+                  guide.intro = {
+                      heading: 'About ' + guide.subtopic,
+                      body: 'Welcome to ' + guide.subtopic + '.'
+                  };
+              }
+
+              return guide;
+          }
       }
+      
+      console.error("❌ JSON is empty. Redirecting to home...");
+      window.location.href = 'index.html';
+      return null;
+      
+  } catch (e) {
+      console.error("❌ Failed to parse session cache. Redirecting to home...", e);
+      window.location.href = 'index.html';
+      return null;
   }
-
-  // 3. Find the guide and apply the fallback bypass
-  if (masterData && masterData.study_guides) {
-      let matchedGuide = masterData.study_guides.find(guide => guide.subtopic === targetName);
-
-      if (!matchedGuide && masterData.study_guides.length > 0) {
-          console.warn(`⚠️ Mismatch! Couldn't find ${targetName}. Loading the first available guide instead.`);
-          matchedGuide = masterData.study_guides[0];
-      }
-
-      if (matchedGuide) {
-          console.log(`✅ Successfully handed data to the UI!`);
-          return matchedGuide;
-      }
-  }
-
-  console.error(`❌ JSON is empty or invalid.`);
-  return null;
 }
 
 /* Build placeholder study content for a subtopic the Study Engine has not
