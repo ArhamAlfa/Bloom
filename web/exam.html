@@ -405,17 +405,110 @@
     }
 
 
+    /* The Tier-3 "already passed" screen. Like the mastered card, but it also
+       offers to reopen the saved conversation if one was kept. */
+    function render_defense_passed_card() {
+      const saved_transcript = load_defense_transcript(subtopic_index);
+
+      const tick_html = '<div class="check big-check">✓</div>';
+      const heading_html = '<h2 style="font-family:var(--serif); margin:12px 0 4px">Defense passed</h2>';
+      const note_html = '<p class="muted">This subtopic has already cleared its Tier 3 defense.</p>';
+
+      let review_button_html = '';
+      if (saved_transcript) {
+        review_button_html = '<button class="btn" data-act="review-history">Review conversation</button>';
+      }
+
+      const buttons_html = '<div class="actions-row" style="justify-content:center">'
+        + review_button_html
+        + '<a class="btn primary" href="curriculum.html">Back to curriculum →</a>'
+        + '</div>';
+
+      exam_panel.innerHTML = '<div style="text-align:center">'
+        + tick_html + heading_html + note_html + buttons_html + '</div>';
+    }
+
+
+    /* Add one saved message to a read-only transcript. Examiner turns are
+       formatted; the learner's turns are shown as plain pills. */
+    function append_history_message(role, content) {
+      const message_element = document.createElement('div');
+
+      if (role === 'ai') {
+        message_element.className = 'msg ex';
+        message_element.innerHTML = '<div class="who">Examiner</div>'
+          + '<div class="bubble">' + render_chat_markdown(content) + '</div>';
+      } else {
+        message_element.className = 'msg me';
+        message_element.innerHTML = '<div class="who">You</div>'
+          + '<div class="bubble">' + escape_html(content) + '</div>';
+      }
+
+      defense_chat_element.appendChild(message_element);
+    }
+
+
+    /* Render the saved defense transcript, read-only, with a way back to the
+       passed card. */
+    function render_defense_history() {
+      const saved_transcript = load_defense_transcript(subtopic_index);
+
+      if (!saved_transcript) {
+        render_defense_passed_card();
+        return;
+      }
+
+      const back_html = '<div class="actions-row" style="margin-top:0; margin-bottom:16px">'
+        + '<button class="btn" data-act="back-to-passed">← Back</button></div>';
+      const lead_html = '<div class="defense-lead muted small">Defense transcript · <b>'
+        + escape_html(subtopic.name) + '</b> (read-only)</div>';
+      const chat_html = '<div class="chat" id="defense-chat"></div>';
+
+      exam_panel.innerHTML = back_html + lead_html + chat_html;
+
+      defense_chat_element = document.getElementById('defense-chat');
+
+      // Draw every turn instantly, skipping the system prompt and the hidden
+      // [SYSTEM INIT] kickoff so only the real conversation shows.
+      for (let message_index = 0; message_index < saved_transcript.length; message_index = message_index + 1) {
+        const one_message = saved_transcript[message_index];
+        const role = one_message[0];
+        const content = one_message[1];
+
+        if (role === 'system') {
+          continue;
+        }
+        if (role === 'user' && content.indexOf('[SYSTEM INIT]') !== -1) {
+          continue;
+        }
+
+        append_history_message(role, content);
+      }
+    }
+
+
     /* ============================================================
        TIER 3 — the examiner chat.
 
-       A real conversation rather than a question loop. There is one endpoint:
-       we send the whole message history, the examiner replies, and it tells us
-       whether the defense is passed. Nothing is stored — leaving the page
-       clears the conversation.
+       A real conversation rather than a question loop, and the one part of
+       this page that talks to the live backend. It follows the exact loop
+       from fake-frontend.py:
+
+         - we hold the whole conversation as `frontend_memory`, the
+           MessageSchema the backend hands back;
+         - the backend owns the message history and the system prompt, so we
+           just send `user_input` plus the messages we were last given;
+         - each reply refreshes `recent_metadata`, and the examiner signals a
+           pass with recent_metadata.is_passed === true.
+
+       Nothing is stored on our side — leaving the page clears the conversation.
        ============================================================ */
 
-    // The conversation so far. Each entry is { role: 'user' | 'assistant', content }.
-    const defense_messages = [];
+    // The latest MessageSchema the backend returned:
+    //   { user_input, messages: [ [role, content], ... ], recent_metadata }
+    // Backend roles are 'system', 'user', and 'ai'. It starts null and is
+    // filled by the first call.
+    let frontend_memory = null;
 
     // These get filled in once the chat shell has been drawn.
     let defense_chat_element = null;
@@ -423,6 +516,10 @@
 
     // True while we are waiting on the examiner, so we cannot send twice.
     let is_waiting_for_examiner = false;
+
+    // Flips to true once the defense is passed: the chat locks and no further
+    // messages can be sent.
+    let defense_is_over = false;
 
 
     /* Draw the chat shell once: the lead line, the empty transcript, and the
@@ -467,12 +564,13 @@
     }
 
 
-    /* Add one message bubble to the transcript, then scroll down to it. */
+    /* Add one message bubble to the transcript, then scroll down to it.
+       `role` is a backend role: 'ai' is the examiner, anything else is us. */
     function append_defense_message(role, content) {
       let speaker_name = 'You';
       let bubble_side_class = 'me';
 
-      if (role === 'assistant') {
+      if (role === 'ai') {
         speaker_name = 'Examiner';
         bubble_side_class = 'ex';
       }
@@ -511,20 +609,259 @@
     }
 
 
+    /* Show a message when we cannot reach the backend, so the learner is not
+       left staring at a silent "Thinking…" bubble. */
+    function show_backend_error() {
+      const error_element = document.createElement('div');
+      error_element.className = 'msg ex';
+      error_element.innerHTML = '<div class="who">Examiner</div>'
+        + '<div class="bubble">Could not reach the examiner backend at '
+        + escape_html(BACKEND_BASE_URL)
+        + '. Make sure the FastAPI server is running, then reload this page.</div>';
+
+      defense_chat_element.appendChild(error_element);
+      defense_chat_element.scrollTop = defense_chat_element.scrollHeight;
+    }
+
+
+    /* Reveal a string into an element one character at a time — about 5ms per
+       character — the same fake streaming fake-frontend.py does when it prints
+       the examiner's reply. Resolves once the whole string is on screen. */
+    function type_text_into(target_element, full_text) {
+      return new Promise(function (resolve) {
+        const CHARACTER_DELAY_MS = 5;
+        let character_index = 0;
+
+        function reveal_next_character() {
+          if (character_index >= full_text.length) {
+            resolve();
+            return;
+          }
+
+          const next_character = full_text.charAt(character_index);
+          target_element.textContent = target_element.textContent + next_character;
+          character_index = character_index + 1;
+
+          // Keep the growing text in view.
+          defense_chat_element.scrollTop = defense_chat_element.scrollHeight;
+
+          setTimeout(reveal_next_character, CHARACTER_DELAY_MS);
+        }
+
+        reveal_next_character();
+      });
+    }
+
+
+    /* Add the examiner's reply: type the raw text out character by character,
+       then replace it with its formatted (Markdown) version. */
+    async function append_streaming_examiner_message(content) {
+      const message_element = document.createElement('div');
+      message_element.className = 'msg ex';
+
+      const who_element = document.createElement('div');
+      who_element.className = 'who';
+      who_element.textContent = 'Examiner';
+
+      const bubble_element = document.createElement('div');
+      bubble_element.className = 'bubble';
+
+      // While typing we show the raw text, with whitespace preserved by the
+      // .stream-text rule so newlines survive.
+      const stream_element = document.createElement('div');
+      stream_element.className = 'stream-text';
+
+      bubble_element.appendChild(stream_element);
+      message_element.appendChild(who_element);
+      message_element.appendChild(bubble_element);
+      defense_chat_element.appendChild(message_element);
+      defense_chat_element.scrollTop = defense_chat_element.scrollHeight;
+
+      await type_text_into(stream_element, content);
+
+      // Typing done: swap the raw text for the properly formatted Markdown.
+      bubble_element.innerHTML = render_chat_markdown(content);
+      defense_chat_element.scrollTop = defense_chat_element.scrollHeight;
+    }
+
+
+    /* Draw the examiner's newest turn. The backend appends exactly one 'ai'
+       message per call, so the last entry in the history is that reply. */
+    async function render_latest_examiner_message() {
+      const all_messages = frontend_memory.messages;
+      const last_index = all_messages.length - 1;
+      const last_message = all_messages[last_index];
+
+      // Each message is a [role, content] pair.
+      const role = last_message[0];
+      const content = last_message[1];
+
+      if (role === 'ai') {
+        await append_streaming_examiner_message(content);
+      }
+    }
+
+
+    /* Grey out the message box once the defense is over: no more sending, but
+       the transcript above it stays readable and scrollable. */
+    function lock_defense_input() {
+      const form_element = document.getElementById('defense-form');
+      if (form_element) {
+        form_element.classList.add('locked');
+      }
+
+      if (defense_input_element) {
+        defense_input_element.disabled = true;
+        defense_input_element.placeholder = 'Defense complete — the chat is now closed.';
+      }
+
+      const send_button = document.querySelector('#defense-form button');
+      if (send_button) {
+        send_button.disabled = true;
+      }
+    }
+
+
+    /* A slim banner left behind after the overlay is dismissed, so the learner
+       always has a way forward from the locked chat. */
+    function show_passed_banner(next_page) {
+      if (document.getElementById('passed-banner')) {
+        return;
+      }
+
+      const banner_element = document.createElement('div');
+      banner_element.id = 'passed-banner';
+      banner_element.className = 'banner passed-banner';
+      banner_element.innerHTML = '<span>✓ Defense passed — the chat is now read-only.</span>'
+        + '<a class="btn primary" href="' + next_page + '">Continue →</a>';
+
+      exam_panel.insertBefore(banner_element, exam_panel.firstChild);
+    }
+
+
+    /* The celebration overlay: an animated tick, a short message, and two ways
+       out — stay and reread, or continue on. Leaving is the learner's choice. */
+    function show_pass_overlay(next_page) {
+      const overlay_element = document.createElement('div');
+      overlay_element.className = 'pass-overlay';
+
+      const check_svg =
+        '<svg class="pass-check" viewBox="0 0 52 52" aria-hidden="true">'
+        + '<circle cx="26" cy="26" r="24"/>'
+        + '<path d="M16 27 l7 7 l14 -15"/>'
+        + '</svg>';
+
+      overlay_element.innerHTML =
+        '<div class="pass-card">'
+        + '<div class="pass-ring">' + check_svg + '</div>'
+        + '<h2>Defense passed</h2>'
+        + '<p>You defended your understanding of <b>' + escape_html(subtopic.name) + '</b>.</p>'
+        + '<div class="actions-row">'
+        + '<button class="btn ghost" data-overlay-act="review">Review conversation</button>'
+        + '<a class="btn primary" href="' + next_page + '">Continue →</a>'
+        + '</div>'
+        + '</div>';
+
+      document.body.appendChild(overlay_element);
+
+      // "Review conversation" dismisses the overlay and leaves a banner behind,
+      // so the locked chat with its full history is there to read.
+      const review_button = overlay_element.querySelector('[data-overlay-act="review"]');
+      review_button.addEventListener('click', function () {
+        overlay_element.remove();
+        show_passed_banner(next_page);
+      });
+    }
+
+
+    /* The examiner reports a pass through recent_metadata.is_passed. When it is
+       set, record the mastery and celebrate — but do NOT navigate. The learner
+       decides when to leave. */
+    function handle_defense_verdict() {
+      const metadata = frontend_memory.recent_metadata;
+
+      let defense_passed = false;
+      if (metadata && metadata.is_passed === true) {
+        defense_passed = true;
+      }
+
+      if (!defense_passed) {
+        return;
+      }
+
+      // The defense is won. Record it, keep the transcript so it can be reread
+      // later, and work out where "Continue" should lead — without going there.
+      defense_is_over = true;
+
+      progress.mastery[subtopic_index][3].defense_result = 'passed';
+      progress.last_studied_subtopic = subtopic_index;
+      save_defense_transcript(subtopic_index, frontend_memory.messages);
+
+      const next_page = advance_progress_after_mastery(progress);
+
+      lock_defense_input();
+      show_pass_overlay(next_page);
+    }
+
+
+    /* Open the defense: draw the shell, then make the first (empty) call so the
+       backend seeds the system prompt and the examiner speaks first — exactly
+       the opening move in fake-frontend.py. */
+    async function start_defense() {
+      render_defense_shell();
+
+      is_waiting_for_examiner = true;
+      show_examiner_thinking();
+
+      // An empty user_input with no messages tells the backend to introduce
+      // itself and present the challenge. The topic is what the examiner
+      // challenges on — send the subtopic that was opened.
+      const initial_state = {
+        user_input: '',
+        topic: subtopic.name,
+        messages: [],
+        recent_metadata: {}
+      };
+
+      let next_state = null;
+      try {
+        next_state = await call_model(initial_state);
+      } catch (backend_error) {
+        hide_examiner_thinking();
+        is_waiting_for_examiner = false;
+        show_backend_error();
+        return;
+      }
+
+      hide_examiner_thinking();
+
+      // Keep the input locked until the reply has finished typing out, so a
+      // second message cannot interleave with the stream.
+      frontend_memory = next_state;
+      await render_latest_examiner_message();
+
+      is_waiting_for_examiner = false;
+      handle_defense_verdict();
+    }
+
+
     /* Send whatever is in the message box to the examiner and show the reply. */
     async function send_typed_message() {
       const typed_text = defense_input_element.value.trim();
 
-      // Nothing to send, or we are still waiting on the last message.
+      // Nothing to send, still waiting on the last message, or the defense is
+      // already over.
       if (typed_text === '') {
         return;
       }
       if (is_waiting_for_examiner) {
         return;
       }
+      if (defense_is_over) {
+        return;
+      }
 
       // Show the learner's message straight away and clear the box.
-      defense_messages.push({ role: 'user', content: typed_text });
       append_defense_message('user', typed_text);
       defense_input_element.value = '';
 
@@ -532,28 +869,36 @@
       is_waiting_for_examiner = true;
       show_examiner_thinking();
 
-      const defense_request = {
-        curriculum: subtopic.curriculum,
-        messages: defense_messages
+      // Build the next state the way fake-frontend.py does: the freshly typed
+      // input, plus the message history the backend last handed us. The backend
+      // ignores any recent_metadata we send and rebuilds it, so we send an
+      // empty object.
+      const outgoing_state = {
+        user_input: typed_text,
+        topic: subtopic.name,
+        messages: frontend_memory.messages,
+        recent_metadata: {}
       };
 
-      const examiner_reply = await send_defense_message(defense_request);
+      let next_state = null;
+      try {
+        next_state = await call_model(outgoing_state);
+      } catch (backend_error) {
+        hide_examiner_thinking();
+        is_waiting_for_examiner = false;
+        show_backend_error();
+        return;
+      }
 
       hide_examiner_thinking();
+
+      // Keep the input locked until the reply has finished typing out, so a
+      // second message cannot interleave with the stream.
+      frontend_memory = next_state;
+      await render_latest_examiner_message();
+
       is_waiting_for_examiner = false;
-
-      // Show what the examiner said.
-      defense_messages.push({ role: 'assistant', content: examiner_reply.response });
-      append_defense_message('assistant', examiner_reply.response);
-
-      // The examiner alone decides when the defense has been passed.
-      if (examiner_reply.defense_passed) {
-        progress.mastery[subtopic_index][3].defense_result = 'passed';
-        progress.last_studied_subtopic = subtopic_index;
-
-        show_toast('Defense passed — mastery granted');
-        window.location.href = advance_progress_after_mastery(progress);
-      }
+      handle_defense_verdict();
     }
 
 
@@ -575,6 +920,17 @@
       }
 
       const action = clicked_button.getAttribute('data-act');
+
+      // Open the saved defense transcript, and come back from it.
+      if (action === 'review-history') {
+        render_defense_history();
+        return;
+      }
+
+      if (action === 'back-to-passed') {
+        render_defense_passed_card();
+        return;
+      }
 
       // Picking one of the multiple-choice options.
       if (action === 'select') {
@@ -618,9 +974,9 @@
       const defense_already_passed = (progress.mastery[subtopic_index][3].defense_result === 'passed');
 
       if (defense_already_passed) {
-        render_mastered_card('Defense passed', 'This subtopic has already cleared its Tier 3 defense.');
+        render_defense_passed_card();
       } else {
-        render_defense_shell();
+        start_defense();
       }
 
     } else if (tier_mastery.is_mastered) {

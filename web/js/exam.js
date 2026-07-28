@@ -16,14 +16,24 @@
         send:    { ...the question object, user_answer, current_score }
         receive: 0.0 .. 1.0
 
-   3. send_defense_message(request) -> the examiner's reply
-        send:    { curriculum, messages }
-                 messages = [ { role: 'user' | 'assistant', content } ]
-        receive: { response, defense_passed }
+   3. call_model(state) -> the whole conversation, one turn further on
+        send:    { user_input, messages, recent_metadata }
+                 messages = [ [ 'system' | 'user' | 'ai', content ], ... ]
+        receive: the same shape, with the learner's turn and the examiner's
+                 reply appended, and recent_metadata refreshed by the backend.
 
    The frontend never decides which skill to ask about, and never decides
-   whether a defense is passed. The backend tells us both.
+   whether a defense is passed. The backend tells us both — the pass verdict
+   arrives as recent_metadata.is_passed on the returned state.
+
+   The defense call is the one endpoint that is already live: it talks to the
+   FastAPI backend exactly the way fake-frontend.py does. Tiers 1 and 2 are
+   still mocked below.
    ============================================================ */
+
+
+/* Where the FastAPI backend is listening. Matches fake-frontend.py. */
+const BACKEND_BASE_URL = "http://127.0.0.1:8000";
 
 
 /* ---- The three API calls. Swap the marked line for a real fetch. ---- */
@@ -44,12 +54,30 @@ async function request_grade(request) {
 }
 
 
-/* Send the whole conversation to the examiner; get back its next reply and
-   whether it considers the defense passed. */
-async function send_defense_message(request) {
-  return mock_defense_reply(request);                                      // ← swap this line
-  // return fetch('/api/defense', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify(request) }).then(response => response.json());
+/* Send the current conversation state to the examiner and get the next state
+   back. This is the real call — it posts to the FastAPI backend the same way
+   fake-frontend.py does, and returns the full MessageSchema the backend sends.
+
+   `state` is { user_input, messages, recent_metadata }. The returned object has
+   the learner's turn and the examiner's reply appended to `messages`, and a
+   fresh `recent_metadata` (which carries the is_passed verdict). */
+async function call_model(state) {
+  const url = BACKEND_BASE_URL + "/call_model";
+
+  const request_options = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(state)
+  };
+
+  const response = await fetch(url, request_options);
+
+  if (!response.ok) {
+    throw new Error("Backend /call_model returned HTTP " + response.status);
+  }
+
+  const next_state = await response.json();
+  return next_state;
 }
 
 
@@ -172,9 +200,4 @@ function mock_grade_answer(request) {
   return bkt_update(request.current_score, request.was_correct === true);
 }
 
-
-/* The fake examiner. Always answers the same thing and never passes the
-   defense — the real endpoint decides both. */
-function mock_defense_reply(request) {
-  return { response: 'EMULATED RESPONSE', defense_passed: false };
-}
+/* The Tier-3 examiner is no longer mocked — it is the live call_model() above. */

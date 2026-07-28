@@ -250,6 +250,113 @@ function render_body(markdown_text) {
   }).join('');
 }
 
+/* ---- Chat message: light Markdown -> HTML ----
+   The examiner writes in Markdown (paragraphs, **bold**, and simple bulleted
+   or numbered lists) with real newlines. HTML would otherwise collapse those
+   newlines into single spaces, which is why the raw reply looks like one solid
+   block. This walks the text line by line and rebuilds the structure. Inline
+   formatting (and HTML escaping) is delegated to format_inline, so the output
+   is safe to assign to innerHTML. */
+function render_chat_markdown(markdown_text) {
+  const source_text = String(markdown_text).replace(/\r\n/g, '\n');
+  const lines = source_text.split('\n');
+
+  // Finished HTML blocks, in order.
+  const html_blocks = [];
+
+  // A run of consecutive list items we are still gathering.
+  let open_list_items = [];
+  let open_list_tag = '';          // 'ul' or 'ol' while a list is open, else ''.
+
+  // A run of consecutive text lines that form one paragraph.
+  let paragraph_lines = [];
+
+  // Close off the paragraph we were building, if any.
+  function flush_paragraph() {
+    if (paragraph_lines.length === 0) {
+      return;
+    }
+
+    const paragraph_html = paragraph_lines.join('<br>');
+    html_blocks.push('<p>' + paragraph_html + '</p>');
+    paragraph_lines = [];
+  }
+
+  // Close off the list we were building, if any.
+  function flush_list() {
+    if (open_list_items.length === 0) {
+      return;
+    }
+
+    const items_html = open_list_items.join('');
+    html_blocks.push('<' + open_list_tag + '>' + items_html + '</' + open_list_tag + '>');
+    open_list_items = [];
+    open_list_tag = '';
+  }
+
+  for (let line_index = 0; line_index < lines.length; line_index = line_index + 1) {
+    const trimmed_line = lines[line_index].trim();
+
+    // A blank line ends the current paragraph and list.
+    if (trimmed_line === '') {
+      flush_paragraph();
+      flush_list();
+      continue;
+    }
+
+    // A bulleted item: "- text" or "* text".
+    const bullet_match = trimmed_line.match(/^[-*]\s+(.*)$/);
+    if (bullet_match) {
+      flush_paragraph();
+
+      if (open_list_tag !== 'ul') {
+        flush_list();
+        open_list_tag = 'ul';
+      }
+
+      const item_html = format_inline(bullet_match[1]);
+      open_list_items.push('<li>' + item_html + '</li>');
+      continue;
+    }
+
+    // A numbered item: "1. text".
+    const number_match = trimmed_line.match(/^\d+\.\s+(.*)$/);
+    if (number_match) {
+      flush_paragraph();
+
+      if (open_list_tag !== 'ol') {
+        flush_list();
+        open_list_tag = 'ol';
+      }
+
+      const item_html = format_inline(number_match[1]);
+      open_list_items.push('<li>' + item_html + '</li>');
+      continue;
+    }
+
+    // A heading: "# text" .. "###### text". Shown as a bold line.
+    const heading_match = trimmed_line.match(/^#{1,6}\s+(.*)$/);
+    if (heading_match) {
+      flush_paragraph();
+      flush_list();
+
+      const heading_html = format_inline(heading_match[1]);
+      html_blocks.push('<p class="chat-h"><strong>' + heading_html + '</strong></p>');
+      continue;
+    }
+
+    // Anything else is a normal line of the current paragraph.
+    flush_list();
+    paragraph_lines.push(format_inline(trimmed_line));
+  }
+
+  flush_paragraph();
+  flush_list();
+
+  return html_blocks.join('');
+}
+
+
 /* Render a "further reading" list of links, or an empty string if there are none. */
 function render_further_reading(links) {
   if (!links || !links.length) return '';

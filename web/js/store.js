@@ -135,6 +135,42 @@ function save_progress(progress) {
 }
 
 
+/* ---- Tier-3 defense transcripts ----
+   The defense chat is otherwise not persisted. Once a defense is passed we keep
+   its transcript so the learner can reopen and reread it later. It is stored
+   separately from progress, one entry per subtopic. */
+
+function defense_transcript_key(subtopic_index) {
+  return 'bloom.defense.' + subtopic_index;
+}
+
+/* Save one subtopic's defense transcript (the raw [role, content] messages). */
+function save_defense_transcript(subtopic_index, messages) {
+  try {
+    const storage_key = defense_transcript_key(subtopic_index);
+    localStorage.setItem(storage_key, JSON.stringify(messages));
+  } catch (error) {
+    /* offline / unavailable — the transcript just will not persist */
+  }
+}
+
+/* Load a saved defense transcript, or null if there is none. */
+function load_defense_transcript(subtopic_index) {
+  try {
+    const storage_key = defense_transcript_key(subtopic_index);
+    const saved_text = localStorage.getItem(storage_key);
+
+    if (saved_text) {
+      return JSON.parse(saved_text);
+    }
+  } catch (error) {
+    /* fall through to null */
+  }
+
+  return null;
+}
+
+
 /* True once every skill in the map is above the mastery threshold. */
 function are_all_skills_mastered(skill_scores) {
   return Object.keys(skill_scores).every(function (skill_name) {
