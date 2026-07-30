@@ -32,8 +32,10 @@
    ============================================================ */
 
 
-/* Where the FastAPI backend is listening. Matches fake-frontend.py. */
-const BACKEND_BASE_URL = "http://127.0.0.1:8000";
+// /* Where the FastAPI backend is listening. Matches fake-frontend.py. */
+// const BACKEND_BASE_URL = "http://127.0.0.1:8000"; --> OMITTED FOR NOW --> D
+
+const BACKEND_BASE_URL = "";
 
 
 /* ---- The three API calls. Swap the marked line for a real fetch. ---- */
@@ -61,7 +63,43 @@ async function request_grade(request) {
    `state` is { user_input, messages, recent_metadata }. The returned object has
    the learner's turn and the examiner's reply appended to `messages`, and a
    fresh `recent_metadata` (which carries the is_passed verdict). */
+
+
+
+
+
+// async function call_model(state) {
+//   const url = BACKEND_BASE_URL + "/call_model";
+
+//   const request_options = {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify(state)
+//   };
+
+//   const response = await fetch(url, request_options);
+
+//   if (!response.ok) {
+//     throw new Error("Backend /call_model returned HTTP " + response.status);
+//   }
+
+//   const next_state = await response.json();
+//   return next_state;
+// } --> OMITTED FOR NOW --> D
+
 async function call_model(state) {
+  const subtopicIndex = new URLSearchParams(window.location.search).get('i') || '0';
+  const cacheKey = `bloom_chat_state_${subtopicIndex}`;
+
+  // If entering page for the first time with empty state, load cached conversation if it exists
+  if (!state.user_input && (!state.messages || state.messages.length === 0)) {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      console.log("Loading cached chatbot session from memory (0 API calls)...");
+      return JSON.parse(cached);
+    }
+  }
+
   const url = BACKEND_BASE_URL + "/call_model";
 
   const request_options = {
@@ -77,8 +115,12 @@ async function call_model(state) {
   }
 
   const next_state = await response.json();
+  
+  // Save updated conversation to memory
+  sessionStorage.setItem(cacheKey, JSON.stringify(next_state));
   return next_state;
 }
+// END OF CHANGE
 
 
 /* ============================================================

@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+load_dotenv()  # This forces Python to read your .env file immediately!
+
+
 import time
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, BaseMessage, SystemMessage, AIMessage
@@ -7,7 +11,9 @@ from backend.shared.schemas import MessageSchema
 from pydantic import BaseModel, Field
 from typing import List, Tuple, Any, Dict, cast
 
-llm = init_chat_model("ollama:qwen3-coder:30b", temperature=0.8)
+# "ollama:qwen3-coder:30b" --> WHAT IT WAS SUPPOSED TO BE
+
+llm = init_chat_model("ollama:qwen3-coder:30b", temperature=0.8)    
 
 # The judge is a separate job from the examiner: temperature 0 for a
 # consistent verdict. A general instruction-tuned model tends to grade better

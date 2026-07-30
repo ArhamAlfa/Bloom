@@ -78,13 +78,52 @@
     document.getElementById('topic-input').value = USER_QUERY;
 
 
+    // /* Naming a topic wipes any leftover progress and opens the dashboard. */
+    // document.getElementById('topic-form').addEventListener('submit', function (submit_event) {
+    //   submit_event.preventDefault();
+
+    //   save_progress(make_fresh_progress());
+    //   window.location.href = 'dashboard.html';
+    // }); --> OMITTED FOR NOW --> D
+
     /* Naming a topic wipes any leftover progress and opens the dashboard. */
-    document.getElementById('topic-form').addEventListener('submit', function (submit_event) {
+    document.getElementById('topic-form').addEventListener('submit', async function (submit_event) {
       submit_event.preventDefault();
 
-      save_progress(make_fresh_progress());
-      window.location.href = 'dashboard.html';
+      const topicInput = document.getElementById('topic-input').value.trim();
+      if (!topicInput) return;
+
+      const submitBtn = this.querySelector('button[type="submit"]');
+      submitBtn.textContent = '⏳';
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/build-pathway', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: topicInput })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          localStorage.setItem('bloom_live_curriculum', JSON.stringify(data.curriculum));
+          sessionStorage.setItem('master_study_guide', JSON.stringify(data.study_guides));
+
+          save_progress(make_fresh_progress());
+          window.location.href = 'dashboard.html';
+        } else {
+          alert('Error building pathway.');
+          submitBtn.textContent = '→';
+          submitBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        submitBtn.textContent = '→';
+        submitBtn.disabled = false;
+      }
     });
+    //  --> END OF CHANGE
 
 
     /* ============================================================
