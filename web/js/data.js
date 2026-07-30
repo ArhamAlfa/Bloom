@@ -20,9 +20,15 @@
    ============================================================ */
 
 
-/* The raw curriculum object, exactly as the schema defines it.
-   (Loaded from data/curriculum.js just before this file.) */
-const raw_curriculum = BLOOM_CURRICULUM;
+// /* The raw curriculum object, exactly as the schema defines it.
+//    (Loaded from data/curriculum.js just before this file.) */
+// const raw_curriculum = BLOOM_CURRICULUM; --> OMITTED FOR NOW --> D
+
+/* Read live curriculum generated from backend if present; otherwise fallback to static fixture */
+const cached_live_curriculum = localStorage.getItem('bloom_live_curriculum');
+const raw_curriculum = cached_live_curriculum ? JSON.parse(cached_live_curriculum) : BLOOM_CURRICULUM;
+// END OF CHANGE
+
 
 const TOPIC = raw_curriculum.topic;                 // e.g. "Fields"
 const USER_QUERY = raw_curriculum.user_query;       // the learner's original request
@@ -40,6 +46,27 @@ const TIER_NAMES = {
    To add another later: create its study file and register it here. */
 const STUDY_BY_NAME = {};
 STUDY_BY_NAME[BLOOM_STUDY_GRAVITATIONAL.subtopic] = BLOOM_STUDY_GRAVITATIONAL;
+
+
+// Parse live AI study guides if present
+const live_study_raw = sessionStorage.getItem('master_study_guide') || localStorage.getItem('master_study_guide');
+if (live_study_raw) {
+  try {
+    const live_guides = JSON.parse(live_study_raw);
+    const guide_list = Array.isArray(live_guides) ? live_guides : (live_guides.study_guides || Object.values(live_guides));
+    guide_list.forEach(function (guide) {
+      if (guide && guide.subtopic) {
+        STUDY_BY_NAME[guide.subtopic] = guide;
+      }
+    });
+  } catch (e) {
+    console.error('Error loading live study guides:', e);
+  }
+}
+
+
+
+
 
 
 /* Build placeholder study content for a subtopic the Study Engine has not

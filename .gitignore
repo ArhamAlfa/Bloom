@@ -1,0 +1,7 @@
+.env
+venv/
+backend/__pycache__/
+backend/curriculum_study_engine/__pycache__/
+backend/current_curriculum.json
+backend/master_study_guide.json 
+*.pyc

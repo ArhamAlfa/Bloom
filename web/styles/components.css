@@ -98,32 +98,95 @@
 .big-check{width:54px; height:54px; margin:0 auto; border-radius:50%; background:var(--accent); color:#fff;
   display:flex; align-items:center; justify-content:center; font-size:27px; font-weight:800}
 
-/* ---- Tier 3 defense chat ---- */
-.defense-lead{margin-bottom:12px}
-.chat{display:flex; flex-direction:column; gap:13px; background:#fafcf9; border:1px solid var(--line);
-  border-radius:13px; padding:18px; max-height:360px; overflow:auto}
-.msg{display:flex; flex-direction:column; max-width:80%}
-.msg.ex{align-self:flex-start} .msg.me{align-self:flex-end; align-items:flex-end}
-.who{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); margin:0 4px 4px}
-.bubble{padding:11px 14px; border-radius:14px; font-size:14px; line-height:1.5}
-.msg.ex .bubble{background:var(--panel); border:1px solid var(--line); border-top-left-radius:4px}
-.msg.me .bubble{background:var(--accent); color:#fff; border-top-right-radius:4px}
+/* ---- Tier 3 defense chat (modern, Gemini-style) ---- */
+.defense-lead{margin-bottom:18px; color:var(--muted)}
+
+/* The transcript: plain scroll area, no card frame. */
+.chat{display:flex; flex-direction:column; gap:26px; background:transparent; border:0;
+  border-radius:0; padding:4px 2px; min-height:200px; max-height:56vh; overflow:auto}
+
+.msg{display:flex; flex-direction:column; max-width:100%}
+.msg.ex{align-self:stretch}
+.msg.me{align-self:flex-end; max-width:80%; align-items:flex-end}
+
+/* Speaker labels are hidden for a cleaner, modern look. */
+.who{display:none}
+
+.bubble{font-size:15px; line-height:1.7}
+
+/* Examiner: plain, full-width text — no bubble, like a modern assistant. */
+.msg.ex .bubble{background:transparent; border:0; padding:0; color:var(--ink)}
+
+/* You: a soft rounded pill on the right. */
+.msg.me .bubble{background:var(--accent-soft); color:var(--ink);
+  padding:12px 18px; border-radius:20px; border-bottom-right-radius:6px; white-space:pre-wrap}
+
+/* Markdown structure inside an examiner message, and the raw text shown while
+   the reply is still being typed out. */
+.bubble .stream-text{white-space:pre-wrap}
+.bubble p{margin:0 0 10px}
+.bubble p:last-child{margin-bottom:0}
+.bubble .chat-h{margin:14px 0 6px; font-size:15px}
+.bubble ul,.bubble ol{margin:6px 0 10px; padding-left:22px}
+.bubble ul:last-child,.bubble ol:last-child{margin-bottom:0}
+.bubble li{margin:4px 0}
+.bubble strong{font-weight:700}
+
+/* The message box: one rounded bar holding the input and the send button. */
+.chat-input{display:flex; gap:8px; align-items:flex-end; margin-top:20px;
+  border:1px solid var(--line); border-radius:26px; background:var(--panel);
+  padding:7px 7px 7px 20px; box-shadow:0 1px 2px rgba(0,0,0,.03); transition:.15s}
+.chat-input:focus-within{border-color:var(--accent); box-shadow:0 2px 12px rgba(79,111,82,.10)}
+.chat-input textarea{flex:1; resize:none; border:0; outline:0; background:transparent;
+  padding:9px 0; font:inherit; color:var(--ink); max-height:160px}
+.chat-input .btn.primary{border-radius:20px; padding:10px 20px}
+
+/* Locked once the defense is over: greyed out, no more input. */
+.chat-input.locked{opacity:.6; background:var(--line-2); border-color:var(--line)}
+.chat-input.locked textarea{cursor:not-allowed}
+
+/* A slim banner shown after the pass overlay is dismissed. */
+.passed-banner{display:flex; align-items:center; justify-content:space-between; gap:14px}
+
 .reply-btn{display:block; text-align:left; width:100%; margin-top:14px; background:var(--panel);
   border:1px dashed var(--accent); color:var(--accent-d); border-radius:11px; padding:12px 15px;
   font:inherit; font-size:14px; cursor:pointer; transition:.12s}
 .reply-btn:hover{background:var(--accent-soft)}
 .verdict{margin-top:16px; border-top:1px solid var(--line-2); padding-top:16px}
 
-/* ---- Defense chat: the message box and the blinking "thinking" bubble ---- */
-.chat{min-height:140px}
-.chat-input{display:flex; gap:10px; align-items:flex-end; margin-top:14px}
-.chat-input textarea{flex:1; resize:vertical; border:1px solid var(--line); border-radius:11px;
-  padding:11px 13px; font:inherit; background:#fbfcfa; color:var(--ink)}
+/* The blinking "thinking" indicator (plain text now, no bubble). */
 .bubble.thinking{color:var(--muted)}
 .bubble.thinking .dot{animation:blink 1.2s infinite}
 .bubble.thinking .dot:nth-child(2){animation-delay:.2s}
 .bubble.thinking .dot:nth-child(3){animation-delay:.4s}
 @keyframes blink{0%,100%{opacity:.2} 50%{opacity:1}}
+
+
+/* ---- Defense passed: the celebration overlay ---- */
+.pass-overlay{position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:rgba(28,34,29,.44); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);
+  opacity:0; animation:overlay-in .25s ease forwards}
+.pass-card{background:var(--panel); border-radius:20px; padding:38px 40px; max-width:420px; width:100%;
+  text-align:center; box-shadow:0 24px 60px rgba(0,0,0,.28);
+  opacity:0; transform:scale(.9) translateY(8px);
+  animation:card-in .34s cubic-bezier(.2,.9,.3,1.2) .06s forwards}
+.pass-ring{width:88px; height:88px; margin:0 auto 20px; border-radius:50%; background:var(--accent-soft);
+  display:flex; align-items:center; justify-content:center; position:relative}
+.pass-ring::after{content:""; position:absolute; inset:-6px; border-radius:50%;
+  border:2px solid var(--accent); opacity:0; animation:ring-pulse 1s ease-out .35s}
+.pass-check{width:46px; height:46px}
+.pass-check circle{fill:none; stroke:var(--accent); stroke-width:3;
+  stroke-dasharray:151; stroke-dashoffset:151; animation:draw .5s ease-out .25s forwards}
+.pass-check path{fill:none; stroke:var(--accent); stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:40; stroke-dashoffset:40; animation:draw .35s ease-out .62s forwards}
+.pass-card h2{font-family:var(--serif); font-size:26px; margin:0 0 6px}
+.pass-card p{color:var(--muted); margin:0}
+.pass-card .actions-row{justify-content:center; margin-top:24px}
+
+@keyframes overlay-in{to{opacity:1}}
+@keyframes card-in{to{opacity:1; transform:scale(1) translateY(0)}}
+@keyframes ring-pulse{from{transform:scale(.75); opacity:.6} to{transform:scale(1.3); opacity:0}}
+@keyframes draw{to{stroke-dashoffset:0}}
 
 /* ---- Progression / exit ---- */
 .prog{max-width:520px; margin:10px auto; text-align:center}
