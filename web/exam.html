@@ -156,7 +156,9 @@
 
     // The question currently on screen, and what the learner has done with it.
     let current_question = null;
-    let chosen_option = null;
+    let chosen_option_index = null;   // which MCQ option is selected (null = none)
+    let last_user_answer = '';        // the answer just submitted (for the result view)
+    let last_result = null;           // the grader's { is_correct, p_l_new, feedback }
     let is_submitted = false;
 
 
@@ -201,22 +203,58 @@
     }
 
 
+    /* Self-heal: generate this subtopic's study guide (if missing), cache it, and
+       reload so the exam starts with the study content available to the generator.
+       Mirrors the lazy generation on study.html. */
+    async function ensure_study_then_start() {
+      exam_panel.innerHTML = '<p class="muted">Preparing this subtopic\'s material…</p>';
+
+      try {
+        const response = await fetch('/api/study', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subtopic: subtopic.curriculum })
+        });
+
+        if (!response.ok) {
+          throw new Error('/api/study returned ' + response.status);
+        }
+
+        const guide = await response.json();
+        guide.subtopic = subtopic.name;
+        save_study_guide(guide);
+        window.location.reload();
+
+      } catch (error) {
+        console.error(error);
+        exam_panel.innerHTML =
+          '<p class="muted">Could not prepare the study material. '
+          + '<a href="study.html?i=' + subtopic_index + '">Open study</a> or '
+          + '<a href="exam.html?i=' + subtopic_index + '">retry</a>.</p>';
+      }
+    }
+
+
     /* Ask the backend for the next question, then draw it. */
     async function load_next_question() {
-      exam_panel.innerHTML = '<p class="muted">Generating the next question…</p>';
+      // Keep the mastery bar visible while the next question is being written.
+      exam_panel.innerHTML = build_mastery_bar_html() + '<p class="muted">Generating the next question…</p>';
 
-      // Everything the generator needs to choose a skill and write a question.
+      // Everything the generator needs to choose a skill and write a question,
+      // including this subtopic's study guide so questions are grounded in the
+      // actual lesson (not just the one-line skill metric).
       const question_request = {
         curriculum: subtopic.curriculum,
         skill_mastery: tier_mastery.skill_scores,
         past_questions: past_questions,
-        tier: current_tier
+        tier: current_tier,
+        study: subtopic.study
       };
 
       current_question = await request_next_question(question_request);
 
       // A fresh question means nothing is chosen or submitted yet.
-      chosen_option = null;
+      chosen_option_index = null;
       is_submitted = false;
 
       render_question();
@@ -226,7 +264,8 @@
     /* Read the learner's answer out of whichever input this question used. */
     function read_user_answer() {
       if (current_question.question_type === 'mcq') {
-        return chosen_option;
+        // The backend grades MCQ by option index, so send the index.
+        return chosen_option_index;
       }
 
       const written_answer_box = document.getElementById('written-answer');
@@ -237,50 +276,66 @@
     }
 
 
-    /* Send the answer to the grader, store the skill's new BKT score, then
-       either finish the subtopic or ask another question. */
-    async function submit_grade(was_correct) {
-
-      // Which skill this question tested, and how confident we currently are.
+    /* Send the answer to the real grader, store the skill's new BKT score, then
+       show the verdict. The backend decides correctness itself. */
+    async function submit_answer() {
       const skill_name = current_question.skill;
       const current_score = tier_mastery.skill_scores[skill_name];
       const user_answer = read_user_answer();
 
-      // Build the packet for the grader: the whole question, plus the answer
-      // and the current score for the skill it targeted.
+      // Make sure there is actually an answer to grade.
+      if (current_question.question_type === 'mcq') {
+        if (chosen_option_index === null) {
+          show_toast('Pick an option first.');
+          return;
+        }
+      } else {
+        if (!String(user_answer || '').trim()) {
+          show_toast('Write an answer first.');
+          return;
+        }
+      }
+
+      last_user_answer = String(user_answer);
+      is_submitted = true;
+
+      // Show a grading state while the backend works.
+      exam_panel.innerHTML = build_mastery_bar_html() + build_question_html()
+        + '<p class="muted">Grading…</p>';
+
+      // The grader gets the whole question, the answer, and the skill's score.
       const grade_request = {
         ...current_question,
-        user_answer: user_answer,
-        current_score: current_score,
-        was_correct: was_correct        // demo only — a real grader decides this itself
+        user_answer: last_user_answer,
+        current_score: current_score
       };
 
-      // Send it off and wait for the skill's new score to come back.
-      const new_score = await request_grade(grade_request);
+      let result;
+      try {
+        result = await request_grade(grade_request);
+      } catch (error) {
+        console.error(error);
+        show_toast('Grading failed — try again.');
+        is_submitted = false;
+        render_question();
+        return;
+      }
 
-      // Record the result.
-      tier_mastery.skill_scores[skill_name] = new_score;
+      // Record the result and move the skill's needle.
+      last_result = result;
+      tier_mastery.skill_scores[skill_name] = result.p_l_new;
       past_questions.push(current_question);
 
       // The subtopic is mastered only when EVERY skill has passed the threshold.
       const everything_mastered = are_all_skills_mastered(tier_mastery.skill_scores);
-
       if (everything_mastered) {
         tier_mastery.is_mastered = true;
         progress.last_studied_subtopic = subtopic_index;
-
-        show_toast('Subtopic mastered — Tier ' + current_tier);
-        window.location.href = advance_progress_after_mastery(progress);
-        return;
       }
 
-      // Not there yet: save what we learned and ask another question.
       save_progress(progress);
-
-      const score_as_percent = Math.round(new_score * 100);
-      show_toast(skill_name + ' · ' + score_as_percent + '%');
-
-      load_next_question();
+      record_mastery_point(progress);
+      render_result();
     }
 
 
@@ -300,10 +355,12 @@
     }
 
 
-    /* Build the question text itself, and the skill it is aimed at. */
+    /* Build the question text itself, and the skill it is aimed at. Both run
+       through format_inline (the study-text renderer) so $…$ LaTeX shows as real
+       maths — subscripts, superscripts, symbols — just like the lessons. */
     function build_question_html() {
-      const skill_line_html = '<div class="q-tag">Targeting · ' + current_question.skill + '</div>';
-      const prompt_html = '<div class="q-prompt">' + current_question.question + '</div>';
+      const skill_line_html = '<div class="q-tag">Targeting · ' + format_inline(current_question.skill) + '</div>';
+      const prompt_html = '<div class="q-prompt">' + format_inline(current_question.question) + '</div>';
 
       return skill_line_html + prompt_html;
     }
@@ -317,7 +374,7 @@
 
         // Highlight the option the learner picked.
         let css_class = 'opt';
-        if (option_text === chosen_option) {
+        if (option_index === chosen_option_index) {
           css_class = 'opt sel';
         }
 
@@ -328,7 +385,7 @@
         }
 
         const one_button_html = '<button class="' + css_class + '" data-act="select" data-arg="'
-          + option_index + '"' + disabled_attribute + '>' + option_text + '</button>';
+          + option_index + '"' + disabled_attribute + '>' + format_inline(option_text) + '</button>';
 
         buttons_html = buttons_html + one_button_html;
       });
@@ -358,25 +415,19 @@
     }
 
 
-    /* Build the buttons under the question: a submit button first, then the
-       model answer and the three grading buttons once submitted. */
+    /* The control under an unanswered question is just the submit button —
+       grading is real now, so there are no "mark correct" buttons. */
     function build_controls_html() {
+      return '<div class="actions-row"><button class="btn primary" data-act="submit">Submit answer →</button></div>'
+        + build_dev_failsafe_html();
+    }
 
-      if (!is_submitted) {
-        return '<div class="actions-row"><button class="btn primary" data-act="submit">Submit answer →</button></div>';
-      }
-
-      const model_answer_html = '<div class="answer"><b>Model answer:</b> ' + current_question.answer + '</div>';
-      const grade_label_html = '<div class="cap">Grade — faked, we steer it</div>';
-
-      const grade_buttons_html =
-        '<div class="actions-row" style="margin-top:10px">'
-        + '<button class="btn ok" data-act="correct">✓ Mark correct</button>'
-        + '<button class="btn danger" data-act="incorrect">✗ Mark incorrect</button>'
-        + '<button class="btn ghost" data-act="coin">Coin-flip</button>'
-        + '</div>';
-
-      return '<div class="graded">' + model_answer_html + grade_label_html + grade_buttons_html + '</div>';
+    /* ===== DEV FAILSAFE — REMOVE BEFORE LAUNCH =====
+       Instantly masters this subtopic at the current tier so we can jump through
+       tiers while testing, without answering every question by hand. */
+    function build_dev_failsafe_html() {
+      return '<div class="actions-row" style="margin-top:10px">'
+        + '<button class="btn ghost" data-act="dev-master">⚡ DEV: mark subtopic learned</button></div>';
     }
 
 
@@ -388,6 +439,53 @@
       const controls_html = build_controls_html();
 
       exam_panel.innerHTML = mastery_html + question_html + answer_html + controls_html;
+    }
+
+
+    /* After grading, show the question, the answer, the verdict, and a button
+       to continue (or finish, once every skill is mastered). */
+    function render_result() {
+      const mastery_html = build_mastery_bar_html();
+      const question_html = build_question_html();
+      const answer_html = build_submitted_answer_html();
+      const feedback_html = build_feedback_html();
+
+      exam_panel.innerHTML = mastery_html + question_html + answer_html + feedback_html;
+    }
+
+
+    /* Show what the learner answered, read-only. */
+    function build_submitted_answer_html() {
+      if (current_question.question_type === 'mcq') {
+        // Reuse the options view; is_submitted disables it and keeps the pick shown.
+        return build_choice_options_html();
+      }
+
+      const escaped_answer = last_user_answer.replace(/</g, '&lt;');
+      return '<div class="answer"><b>Your answer:</b> ' + escaped_answer + '</div>';
+    }
+
+
+    /* Show the grader's verdict and the button to continue. */
+    function build_feedback_html() {
+      let verdict_label = 'Incorrect';
+      if (last_result.is_correct) {
+        verdict_label = 'Correct';
+      }
+
+      const feedback_text = last_result.feedback || '';
+      const verdict_html = '<div class="answer"><b>' + verdict_label + '</b> · ' + format_inline(feedback_text) + '</div>';
+
+      let button_html;
+      if (tier_mastery.is_mastered) {
+        button_html = '<div class="actions-row" style="margin-top:12px">'
+          + '<button class="btn primary" data-act="finish">Finish subtopic →</button></div>';
+      } else {
+        button_html = '<div class="actions-row" style="margin-top:12px">'
+          + '<button class="btn primary" data-act="next">Next question →</button></div>';
+      }
+
+      return '<div class="graded">' + verdict_html + button_html + '</div>';
     }
 
 
@@ -934,33 +1032,38 @@
 
       // Picking one of the multiple-choice options.
       if (action === 'select') {
-        const option_index = parseInt(clicked_button.getAttribute('data-arg'), 10);
-        chosen_option = current_question.options[option_index];
+        chosen_option_index = parseInt(clicked_button.getAttribute('data-arg'), 10);
         render_question();
         return;
       }
 
-      // Submitting the answer reveals the model answer and the grade buttons.
+      // Submitting the answer sends it to the real grader.
       if (action === 'submit') {
-        is_submitted = true;
-        render_question();
+        submit_answer();
         return;
       }
 
-      // The three grading buttons.
-      if (action === 'correct') {
-        submit_grade(true);
+      // Move on to the next question after seeing the verdict.
+      if (action === 'next') {
+        load_next_question();
         return;
       }
 
-      if (action === 'incorrect') {
-        submit_grade(false);
+      // Finish the subtopic once every skill is mastered.
+      if (action === 'finish') {
+        window.location.href = advance_progress_after_mastery(progress);
         return;
       }
 
-      if (action === 'coin') {
-        const coin_landed_correct = (Math.random() < 0.5);
-        submit_grade(coin_landed_correct);
+      // ===== DEV FAILSAFE — REMOVE BEFORE LAUNCH =====
+      if (action === 'dev-master') {
+        const skill_scores = tier_mastery.skill_scores;
+        Object.keys(skill_scores).forEach(function (skill_name) { skill_scores[skill_name] = 1.0; });
+        tier_mastery.is_mastered = true;
+        progress.last_studied_subtopic = subtopic_index;
+        save_progress(progress);
+        record_mastery_point(progress);
+        window.location.href = advance_progress_after_mastery(progress);
         return;
       }
     });
@@ -984,6 +1087,11 @@
 
       render_mastered_card('Mastered at Tier ' + current_tier,
         'Every skill in this subtopic is above ' + threshold_percent + '% confidence.');
+
+    } else if (subtopic.study && subtopic.study.stub) {
+      // Self-heal: the question generator needs this subtopic's study guide, so
+      // if it hasn't been generated yet, generate it now before the loop starts.
+      ensure_study_then_start();
 
     } else {
       load_next_question();

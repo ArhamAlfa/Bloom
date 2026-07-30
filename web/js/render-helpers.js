@@ -146,21 +146,55 @@ function flower_svg(stage, size) {
 
 /* Draw the dashboard's small line chart as an SVG string. The data is a fixed
    mock — it is only a visual placeholder for "recent performance". */
-function performance_chart_svg() {
+function performance_chart_svg(history) {
 
-  const sample_scores = [35, 42, 38, 55, 60, 72, 78];
-  const width = 340;
-  const height = 120;
-  const padding = 12;
+  const scores = Array.isArray(history) ? history : [];
+
+  const width = 700;
+  const height = 220;
+  const padding = 16;
   const max_score = 100;
 
-  // Turn each score into an [x, y] point across the chart.
-  const x_step = (width - padding * 2) / (sample_scores.length - 1);
-  const points = sample_scores.map(function (score, index) {
-    return [padding + index * x_step, height - padding - (score / max_score) * (height - padding * 2)];
+  // Map a 0..100 value to a y coordinate (0% at the bottom, 100% at the top).
+  function y_for(value) {
+    return height - padding - (value / max_score) * (height - padding * 2);
+  }
+
+  // The tier boundaries. Tier 1 fills 0..33.3%, Tier 2 33.3..66.7%, Tier 3 above.
+  const tier2_y = y_for(100 / 3);
+  const tier3_y = y_for(200 / 3);
+
+  // Faint band shading for the three tier regions (darker higher up).
+  const band_tier1 = '<rect x="' + padding + '" y="' + tier2_y.toFixed(1) + '" width="' + (width - padding * 2) + '" height="' + ((height - padding) - tier2_y).toFixed(1) + '" fill="rgba(79,111,82,0.04)"/>';
+  const band_tier2 = '<rect x="' + padding + '" y="' + tier3_y.toFixed(1) + '" width="' + (width - padding * 2) + '" height="' + (tier2_y - tier3_y).toFixed(1) + '" fill="rgba(79,111,82,0.09)"/>';
+  const band_tier3 = '<rect x="' + padding + '" y="' + padding + '" width="' + (width - padding * 2) + '" height="' + (tier3_y - padding).toFixed(1) + '" fill="rgba(79,111,82,0.14)"/>';
+
+  // A labelled, dashed boundary line.
+  function dashed_boundary(y_position, label) {
+    return '<line x1="' + padding + '" y1="' + y_position.toFixed(1) + '" x2="' + (width - padding) + '" y2="' + y_position.toFixed(1) + '" stroke="#8aa08c" stroke-width="1" stroke-dasharray="4 3"/>'
+      + '<text x="' + (width - padding) + '" y="' + (y_position - 3).toFixed(1) + '" text-anchor="end" font-size="8" fill="#8aa08c">' + label + '</text>';
+  }
+  const tier_boundaries = dashed_boundary(tier2_y, 'Tier 2') + dashed_boundary(tier3_y, 'Tier 3');
+
+  const baseline = '<line x1="' + padding + '" y1="' + (height - padding) + '" x2="' + (width - padding) + '" y2="' + (height - padding) + '" stroke="#dfe3da"/>';
+
+  // No data yet: show the bands and a gentle hint, no line.
+  if (scores.length === 0) {
+    return '<svg viewBox="0 0 ' + width + ' ' + height + '" width="100%" height="' + height + '" preserveAspectRatio="none" style="display:block">'
+      + band_tier1 + band_tier2 + band_tier3 + tier_boundaries + baseline
+      + '<text x="' + (width / 2) + '" y="' + (height / 2) + '" text-anchor="middle" font-size="9" fill="#9aa79b">Answer questions to grow your curve.</text>'
+      + '</svg>';
+  }
+
+  // Spread the points across the width (a single point sits at the left edge).
+  let x_step = 0;
+  if (scores.length > 1) {
+    x_step = (width - padding * 2) / (scores.length - 1);
+  }
+  const points = scores.map(function (score, index) {
+    return [padding + index * x_step, y_for(score)];
   });
 
-  // The line through the points, and a filled area beneath it.
   const line_path = points.map(function (point, index) {
     return (index ? 'L' : 'M') + point[0].toFixed(1) + ' ' + point[1].toFixed(1);
   }).join(' ');
@@ -168,21 +202,14 @@ function performance_chart_svg() {
     + ' L ' + points[points.length - 1][0].toFixed(1) + ' ' + (height - padding)
     + ' L ' + points[0][0].toFixed(1) + ' ' + (height - padding) + ' Z';
 
-  // Faint horizontal gridlines.
-  let gridlines = '';
-  [0.25, 0.5, 0.75].forEach(function (fraction) {
-    const y_position = (padding + (height - padding * 2) * fraction).toFixed(1);
-    gridlines += '<line x1="' + padding + '" y1="' + y_position + '" x2="' + (width - padding) + '" y2="' + y_position + '" stroke="#eef1ea"/>';
-  });
-
-  // A dot on each data point.
   const dot_circles = points.map(function (point) {
-    return '<circle cx="' + point[0].toFixed(1) + '" cy="' + point[1].toFixed(1) + '" r="2.6" fill="#4f6f52"/>';
+    return '<circle cx="' + point[0].toFixed(1) + '" cy="' + point[1].toFixed(1) + '" r="2.4" fill="#4f6f52"/>';
   }).join('');
 
-  return '<svg viewBox="0 0 ' + width + ' ' + height + '" width="100%" height="' + height + '">'
-    + gridlines
-    + '<line x1="' + padding + '" y1="' + (height - padding) + '" x2="' + (width - padding) + '" y2="' + (height - padding) + '" stroke="#dfe3da"/>'
+  return '<svg viewBox="0 0 ' + width + ' ' + height + '" width="100%" height="' + height + '" preserveAspectRatio="none" style="display:block">'
+    + band_tier1 + band_tier2 + band_tier3
+    + tier_boundaries
+    + baseline
     + '<path d="' + area_path + '" fill="rgba(79,111,82,0.10)"/>'
     + '<path d="' + line_path + '" fill="none" stroke="#4f6f52" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
     + dot_circles

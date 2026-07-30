@@ -45,7 +45,7 @@
         <button class="entry-send" type="submit" aria-label="Start learning">→</button>
       </form>
 
-      <p class="entry-hint">Type anything — the demo loads the hardcoded "Fields" curriculum from the schema fixtures.
+      <p class="entry-hint">Type any topic — Bloom builds a fresh curriculum for it, then grows each lesson as you go.
       </p>
     </div>
   </div>
@@ -78,52 +78,48 @@
     document.getElementById('topic-input').value = USER_QUERY;
 
 
-    // /* Naming a topic wipes any leftover progress and opens the dashboard. */
-    // document.getElementById('topic-form').addEventListener('submit', function (submit_event) {
-    //   submit_event.preventDefault();
-
-    //   save_progress(make_fresh_progress());
-    //   window.location.href = 'dashboard.html';
-    // }); --> OMITTED FOR NOW --> D
-
-    /* Naming a topic wipes any leftover progress and opens the dashboard. */
+    /* Naming a topic starts a clean run: build the curriculum, wipe any previous
+       session, store the new curriculum, and open the dashboard. Study guides and
+       progress are (re)created lazily against this new curriculum on the pages
+       that need them — nothing else is generated up front. */
     document.getElementById('topic-form').addEventListener('submit', async function (submit_event) {
       submit_event.preventDefault();
 
-      const topicInput = document.getElementById('topic-input').value.trim();
-      if (!topicInput) return;
+      const topic_text = document.getElementById('topic-input').value.trim();
+      if (!topic_text) return;
 
-      const submitBtn = this.querySelector('button[type="submit"]');
-      submitBtn.textContent = '⏳';
-      submitBtn.disabled = true;
+      const submit_button = this.querySelector('button[type="submit"]');
+      submit_button.textContent = '⏳';
+      submit_button.disabled = true;
 
       try {
         const response = await fetch('/api/build-pathway', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic: topicInput })
+          body: JSON.stringify({ topic: topic_text })
         });
+
+        if (!response.ok) {
+          throw new Error('build-pathway returned ' + response.status);
+        }
 
         const data = await response.json();
 
-        if (data.status === 'success') {
-          localStorage.setItem('bloom_live_curriculum', JSON.stringify(data.curriculum));
-          sessionStorage.setItem('master_study_guide', JSON.stringify(data.study_guides));
+        // New topic = clean slate. Clear the whole session, then store just the
+        // new curriculum. Progress is created fresh on the dashboard, because
+        // load_progress() finds nothing and builds it against the new subtopics.
+        sessionStorage.clear();
+        sessionStorage.setItem(CURRICULUM_STORAGE_KEY, JSON.stringify(data.curriculum));
 
-          save_progress(make_fresh_progress());
-          window.location.href = 'dashboard.html';
-        } else {
-          alert('Error building pathway.');
-          submitBtn.textContent = '→';
-          submitBtn.disabled = false;
-        }
-      } catch (err) {
-        console.error(err);
-        submitBtn.textContent = '→';
-        submitBtn.disabled = false;
+        window.location.href = 'dashboard.html';
+
+      } catch (error) {
+        console.error(error);
+        alert('Sorry — building the pathway failed. Please try again.');
+        submit_button.textContent = '→';
+        submit_button.disabled = false;
       }
     });
-    //  --> END OF CHANGE
 
 
     /* ============================================================

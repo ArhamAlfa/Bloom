@@ -97,32 +97,84 @@
   <script>
     "use strict";
 
-    /* The subtopic (?i=) and which page of it (?page=) both come from the URL. */
+    /* The subtopic (?i=) comes from the URL. */
     const progress = load_progress();
     const subtopic_index = parseInt(get_url_parameter('i', progress.last_studied_subtopic != null ? progress.last_studied_subtopic : 0), 10);
     const subtopic = SUBTOPICS[subtopic_index];
-    const study = subtopic.study;
-    const study_page_list = get_study_pages(subtopic_index);
-
-    let page_index = parseInt(get_url_parameter('page', 0), 10);
-    if (page_index < 0) page_index = 0;
-    if (page_index >= study_page_list.length) page_index = study_page_list.length - 1;
-    const current_page = study_page_list[page_index];
 
 
-    /* Fill the sidebar, highlighting the page we are on. */
-    fill_sidebar('curriculum', progress, subtopic_index, page_index);
+    /* A subtopic's study guide is generated on demand, the first time it is
+       opened. Until it exists, data.js hands us a "stub" placeholder. If we are
+       looking at a stub, generate the real guide now — with the page locked down
+       (a loading state and no navigation) — cache it, and reload so the normal
+       render below picks up the finished guide. Otherwise, render straight away. */
+    if (subtopic.study && subtopic.study.stub) {
+      fill_sidebar('curriculum', progress, subtopic_index, 0);
+      show_generating_state();
+      generate_study_guide_then_reload();
+    } else {
+      render_study_page();
+    }
 
 
-    /* Header */
-    document.getElementById('crumb-subtopic').textContent = subtopic.name;
-    document.getElementById('crumb-subtopic').href = 'subtopic.html?i=' + subtopic_index;
-    document.getElementById('crumb-page').textContent = current_page.num;
-    document.getElementById('page-title').textContent = current_page.num + ' · ' + current_page.title;
-    document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
-    if (study.stub) {
-      document.getElementById('stub-note').innerHTML =
-        '<div class="stub-note">Placeholder outline — only "Gravitational fields" is fully authored in the Study Engine fixture.</div>';
+    /* Put the page into its "generating" lockdown: a loading message and no
+       navigation, so the reader waits here while the lesson is written. */
+    function show_generating_state() {
+      document.getElementById('crumb-subtopic').textContent = subtopic.name;
+      document.getElementById('crumb-subtopic').href = 'subtopic.html?i=' + subtopic_index;
+      document.getElementById('page-title').textContent = 'Generating study guide…';
+      document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
+
+      document.getElementById('lesson').innerHTML =
+        '<section class="lesson-cell"><p class="muted">Writing the lesson for <strong>'
+        + subtopic.name + '</strong>. This can take a little while — please stay on this page.</p></section>';
+
+      // Lockdown: no previous / next while the guide is being written.
+      document.getElementById('nav-prev').innerHTML = '';
+      document.getElementById('nav-next').innerHTML = '';
+    }
+
+
+    /* Ask the backend for this subtopic's study guide, cache it, and reload so
+       the finished guide renders through the normal path. */
+    async function generate_study_guide_then_reload() {
+      try {
+        const response = await fetch('/api/study', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subtopic: subtopic.curriculum })
+        });
+
+        if (!response.ok) {
+          throw new Error('/api/study returned ' + response.status);
+        }
+
+        const guide = await response.json();
+
+        // Force the subtopic name so the guide always maps back to THIS subtopic,
+        // even if the model (or the mock fixture) labelled it differently. This
+        // also guarantees we never loop: after caching, it is no longer a stub.
+        guide.subtopic = subtopic.name;
+
+        save_study_guide(guide);
+        window.location.reload();
+
+      } catch (error) {
+        console.error(error);
+        show_generation_error(error);
+      }
+    }
+
+
+    /* Failure state with a manual retry, so a broken generation never loops. */
+    function show_generation_error(error) {
+      document.getElementById('page-title').textContent = 'Could not generate this lesson';
+      document.getElementById('lesson').innerHTML =
+        '<section class="lesson-cell"><p class="muted">Something went wrong while writing this lesson ('
+        + String(error.message || error) + ').</p>'
+        + '<div class="actions-row" style="margin-top:16px">'
+        + '<a class="btn primary" href="study.html?i=' + subtopic_index + '">Try again</a>'
+        + '<a class="btn ghost" href="curriculum.html">Back to curriculum</a></div></section>';
     }
 
 
@@ -140,33 +192,58 @@
     }
 
 
-    /* Build the body for this page. The intro has one cell; a section has a
-       Tier 1 cell (always readable) plus a Tier 2 cell that unlocks once this
-       subtopic's Tier 1 is mastered; the capstone unlocks after Tier 2. */
-    let lesson_html;
-    if (current_page.kind === 'intro') {
-      lesson_html = '<section class="lesson-cell">' + (study.intro ? render_body(study.intro.body) : '<p class="muted">No overview yet.</p>') + '</section>';
-    } else if (current_page.kind === 'section') {
-      const section = study.sections[current_page.section_index];
-      lesson_html = make_cell(1, TIER_NAMES[1], section.tier_1, true, '')
-        + make_cell(2, TIER_NAMES[2], section.tier_2, progress.mastery[subtopic_index][1].is_mastered, 'Master Tier 1 to unlock this extension.');
-    } else {
-      lesson_html = make_cell(3, TIER_NAMES[3], study.capstone, progress.mastery[subtopic_index][2].is_mastered, 'Master Tier 2 to unlock the capstone.');
-    }
-    document.getElementById('lesson').innerHTML = lesson_html;
+    /* The normal study render, once we have a real (non-stub) guide. */
+    function render_study_page() {
+      const study = subtopic.study;
+      const study_page_list = get_study_pages(subtopic_index);
 
+      /* Which page of the subtopic (?page=), clamped to the pages we have. */
+      let page_index = parseInt(get_url_parameter('page', 0), 10);
+      if (page_index < 0) page_index = 0;
+      if (page_index >= study_page_list.length) page_index = study_page_list.length - 1;
+      const current_page = study_page_list[page_index];
 
-    /* Previous / next links. On the last page, "next" heads to the assessment. */
-    if (page_index > 0) {
-      document.getElementById('nav-prev').innerHTML =
-        '<a class="btn ghost" href="study.html?i=' + subtopic_index + '&page=' + (page_index - 1) + '">← ' + study_page_list[page_index - 1].num + '</a>';
-    }
-    if (page_index < study_page_list.length - 1) {
-      document.getElementById('nav-next').innerHTML =
-        '<a class="btn primary" href="study.html?i=' + subtopic_index + '&page=' + (page_index + 1) + '">' + study_page_list[page_index + 1].num + ' · ' + study_page_list[page_index + 1].title + ' →</a>';
-    } else {
-      document.getElementById('nav-next').innerHTML =
-        '<a class="btn primary" href="exam.html?i=' + subtopic_index + '">' + (progress.current_tier === 3 ? 'Go to defense →' : 'Go to assessment →') + '</a>';
+      /* Fill the sidebar, highlighting the page we are on. */
+      fill_sidebar('curriculum', progress, subtopic_index, page_index);
+
+      /* Header */
+      document.getElementById('crumb-subtopic').textContent = subtopic.name;
+      document.getElementById('crumb-subtopic').href = 'subtopic.html?i=' + subtopic_index;
+      document.getElementById('crumb-page').textContent = current_page.num;
+      document.getElementById('page-title').textContent = current_page.num + ' · ' + current_page.title;
+      document.getElementById('tier-pill').textContent = TIER_NAMES[progress.current_tier];
+      if (study.stub) {
+        document.getElementById('stub-note').innerHTML =
+          '<div class="stub-note">Placeholder outline — this subtopic\'s full lesson has not been generated yet.</div>';
+      }
+
+      /* Build the body for this page. The intro has one cell; a section has a
+         Tier 1 cell (always readable) plus a Tier 2 cell that unlocks once this
+         subtopic's Tier 1 is mastered; the capstone unlocks after Tier 2. */
+      let lesson_html;
+      if (current_page.kind === 'intro') {
+        lesson_html = '<section class="lesson-cell">' + (study.intro ? render_body(study.intro.body) : '<p class="muted">No overview yet.</p>') + '</section>';
+      } else if (current_page.kind === 'section') {
+        const section = study.sections[current_page.section_index];
+        lesson_html = make_cell(1, TIER_NAMES[1], section.tier_1, true, '')
+          + make_cell(2, TIER_NAMES[2], section.tier_2, progress.mastery[subtopic_index][1].is_mastered, 'Master Tier 1 to unlock this extension.');
+      } else {
+        lesson_html = make_cell(3, TIER_NAMES[3], study.capstone, progress.mastery[subtopic_index][2].is_mastered, 'Master Tier 2 to unlock the capstone.');
+      }
+      document.getElementById('lesson').innerHTML = lesson_html;
+
+      /* Previous / next links. On the last page, "next" heads to the assessment. */
+      if (page_index > 0) {
+        document.getElementById('nav-prev').innerHTML =
+          '<a class="btn ghost" href="study.html?i=' + subtopic_index + '&page=' + (page_index - 1) + '">← ' + study_page_list[page_index - 1].num + '</a>';
+      }
+      if (page_index < study_page_list.length - 1) {
+        document.getElementById('nav-next').innerHTML =
+          '<a class="btn primary" href="study.html?i=' + subtopic_index + '&page=' + (page_index + 1) + '">' + study_page_list[page_index + 1].num + ' · ' + study_page_list[page_index + 1].title + ' →</a>';
+      } else {
+        document.getElementById('nav-next').innerHTML =
+          '<a class="btn primary" href="exam.html?i=' + subtopic_index + '">' + (progress.current_tier === 3 ? 'Go to defense →' : 'Go to assessment →') + '</a>';
+      }
     }
   </script>
 </body>

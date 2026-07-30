@@ -116,8 +116,8 @@
     document.getElementById('dash-progress').textContent = tier_progress_summary(progress);
 
 
-    /* Draw the placeholder performance chart. */
-    document.getElementById('dash-chart').innerHTML = performance_chart_svg();
+    /* Draw the performance chart from the recorded mastery history. */
+    document.getElementById('dash-chart').innerHTML = performance_chart_svg(load_mastery_history());
 
 
     /* Fill the "continue learning" panel with the most recent subtopic (if any). */

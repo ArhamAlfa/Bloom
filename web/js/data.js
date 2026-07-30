@@ -20,14 +20,24 @@
    ============================================================ */
 
 
-// /* The raw curriculum object, exactly as the schema defines it.
-//    (Loaded from data/curriculum.js just before this file.) */
-// const raw_curriculum = BLOOM_CURRICULUM; --> OMITTED FOR NOW --> D
+/* The client "database" keys. sessionStorage is the whole app's memory for one
+   visit: it survives page-to-page navigation and reloads, and is wiped by the
+   "New prompt" button (exit.html) or by starting a new topic (index.html).
+   These are defined here because data.js loads before every other script, so the
+   rest of the app can reference them. */
+const CURRICULUM_STORAGE_KEY = 'bloom.curriculum';
+const STUDY_GUIDES_STORAGE_KEY = 'bloom.study_guides';
 
-/* Read live curriculum generated from backend if present; otherwise fallback to static fixture */
-const cached_live_curriculum = localStorage.getItem('bloom_live_curriculum');
-const raw_curriculum = cached_live_curriculum ? JSON.parse(cached_live_curriculum) : BLOOM_CURRICULUM;
-// END OF CHANGE
+/* Use the live curriculum built by /api/build-pathway if one is stored for this
+   session; otherwise fall back to the bundled fixture so the app still renders
+   (e.g. when opening a page directly during development). */
+const stored_curriculum_text = sessionStorage.getItem(CURRICULUM_STORAGE_KEY);
+let raw_curriculum;
+if (stored_curriculum_text) {
+  raw_curriculum = JSON.parse(stored_curriculum_text);
+} else {
+  raw_curriculum = BLOOM_CURRICULUM;
+}
 
 
 const TOPIC = raw_curriculum.topic;                 // e.g. "Fields"
@@ -48,19 +58,23 @@ const STUDY_BY_NAME = {};
 STUDY_BY_NAME[BLOOM_STUDY_GRAVITATIONAL.subtopic] = BLOOM_STUDY_GRAVITATIONAL;
 
 
-// Parse live AI study guides if present
-const live_study_raw = sessionStorage.getItem('master_study_guide') || localStorage.getItem('master_study_guide');
-if (live_study_raw) {
+/* Pull in any study guides generated so far this session. They are produced
+   lazily, one subtopic at a time (see study.html), and accumulate in the cache
+   under STUDY_GUIDES_STORAGE_KEY as { study_guides: [...] }. Each is keyed by its
+   subtopic name so it lines up with the matching curriculum subtopic. */
+const stored_study_text = sessionStorage.getItem(STUDY_GUIDES_STORAGE_KEY);
+if (stored_study_text) {
   try {
-    const live_guides = JSON.parse(live_study_raw);
-    const guide_list = Array.isArray(live_guides) ? live_guides : (live_guides.study_guides || Object.values(live_guides));
-    guide_list.forEach(function (guide) {
+    const parsed_study = JSON.parse(stored_study_text);
+    const generated_guides = parsed_study.study_guides || [];
+
+    generated_guides.forEach(function (guide) {
       if (guide && guide.subtopic) {
         STUDY_BY_NAME[guide.subtopic] = guide;
       }
     });
-  } catch (e) {
-    console.error('Error loading live study guides:', e);
+  } catch (error) {
+    console.error('Could not read cached study guides:', error);
   }
 }
 

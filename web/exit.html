@@ -55,11 +55,12 @@
     <!-- ================= Main column: save & quit ================= -->
     <main class="main">
       <div class="exit-panel panel">
-        <h2 style="font-family:var(--serif); font-size:22px; margin-bottom:8px">Save &amp; exit</h2>
-        <p class="muted" style="margin:0 0 20px">Progress is saved automatically as we go, so it will still be here next
-          time. We can resume this session from the splash screen.</p>
+        <h2 style="font-family:var(--serif); font-size:22px; margin-bottom:8px">New prompt</h2>
+        <p class="muted" style="margin:0 0 20px">This clears the current pathway — its curriculum, generated lessons, and
+          progress all live only in this session, so starting a new prompt wipes them and returns you to the splash
+          screen. There is nothing to save; you begin fresh.</p>
         <div class="actions-row" style="justify-content:center; margin:0">
-          <a class="btn primary" href="index.html">Save &amp; quit</a>
+          <button class="btn primary" id="new-prompt-btn" type="button">Start a new prompt</button>
           <a class="btn ghost" href="dashboard.html">Cancel</a>
         </div>
       </div>
@@ -81,9 +82,15 @@
   <script>
     "use strict";
 
-    /* Nothing to do here but fill the sidebar — both buttons are plain links. */
     const progress = load_progress();
     fill_sidebar('exit', progress, null, null);
+
+    /* "New prompt" wipes the whole session (curriculum, lessons, progress — the
+       entire sessionStorage "database") and returns to the splash screen. */
+    document.getElementById('new-prompt-btn').addEventListener('click', function () {
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    });
   </script>
 </body>
 

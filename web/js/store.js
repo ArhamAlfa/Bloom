@@ -3,16 +3,14 @@
 /* ============================================================
    store.js — where the learner's PROGRESS is saved and loaded.
 
-   This is one of the "backend seams". A multi-page site forgets
-   everything when we move between pages, so we keep progress in the
-   browser's localStorage and read it back on each page. When a real
-   backend exists, only load_progress() / save_progress() change.
+   A multi-page site forgets everything when we move between pages, so we keep
+   progress in the browser's sessionStorage and read it back on each page.
+   sessionStorage is the whole app's "database" for one visit: it survives
+   page-to-page navigation and reloads, and is wiped only by the "New prompt"
+   button (exit.html) or by starting a new topic (index.html). There is no
+   server-side persistence — you load in, work, and finish.
 
-       // today (offline):
-       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-
-       // later (real backend):
-       // await fetch('/api/progress', { method:'POST', body: JSON.stringify(progress) });
+       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
 
    Mastery is tracked with Bayesian Knowledge Tracing: every skill holds a
    probability (0..1) that the learner knows it. A subtopic counts as mastered
@@ -113,24 +111,40 @@ function make_demo_progress() {
 }
 
 
-/* Load the saved progress from localStorage, or a fresh start if none exists. */
+/* Load the saved progress from sessionStorage, or a fresh start if none exists.
+
+   Guards against a stale progress left over from a DIFFERENT curriculum: if its
+   per-subtopic mastery array no longer matches the current number of subtopics,
+   it is meaningless here (and indexing it would crash the curriculum page), so
+   we discard it and start fresh. */
 function load_progress() {
   try {
-    const saved_text = localStorage.getItem(STORAGE_KEY);
-    if (saved_text) return JSON.parse(saved_text);
+    const saved_text = sessionStorage.getItem(STORAGE_KEY);
+    if (saved_text) {
+      const saved_progress = JSON.parse(saved_text);
+
+      const has_matching_mastery =
+        saved_progress
+        && Array.isArray(saved_progress.mastery)
+        && saved_progress.mastery.length === SUBTOPICS.length;
+
+      if (has_matching_mastery) {
+        return saved_progress;
+      }
+    }
   } catch (error) {
-    /* localStorage unavailable — fall through to a fresh start */
+    /* sessionStorage unavailable or unreadable — fall through to a fresh start */
   }
   return make_fresh_progress();
 }
 
 
-/* Save the progress object to localStorage. */
+/* Save the progress object to sessionStorage. */
 function save_progress(progress) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch (error) {
-    /* nothing we can do offline; progress just will not persist */
+    /* nothing we can do; progress just will not persist */
   }
 }
 
@@ -148,9 +162,9 @@ function defense_transcript_key(subtopic_index) {
 function save_defense_transcript(subtopic_index, messages) {
   try {
     const storage_key = defense_transcript_key(subtopic_index);
-    localStorage.setItem(storage_key, JSON.stringify(messages));
+    sessionStorage.setItem(storage_key, JSON.stringify(messages));
   } catch (error) {
-    /* offline / unavailable — the transcript just will not persist */
+    /* unavailable — the transcript just will not persist */
   }
 }
 
@@ -158,7 +172,7 @@ function save_defense_transcript(subtopic_index, messages) {
 function load_defense_transcript(subtopic_index) {
   try {
     const storage_key = defense_transcript_key(subtopic_index);
-    const saved_text = localStorage.getItem(storage_key);
+    const saved_text = sessionStorage.getItem(storage_key);
 
     if (saved_text) {
       return JSON.parse(saved_text);
@@ -192,6 +206,112 @@ function subtopic_mastery_percent(progress, subtopic_index, tier) {
 
   const total = skill_names.reduce(function (sum, skill_name) { return sum + scores[skill_name]; }, 0);
   return Math.round(total / skill_names.length * 100);
+}
+
+
+/* Like subtopic_mastery_percent, but stretched for DISPLAY so an untouched
+   subtopic reads as 0%.
+
+   Raw BKT scores never start at zero (they start at the prior), so the raw
+   average shows a fresh subtopic at ~20%. For progress bars we stretch the range
+   we care about — [prior .. threshold] onto [0 .. 100] — and clamp below the
+   prior to 0. This changes only what is shown, never the stored P(L) values. */
+function subtopic_display_percent(progress, subtopic_index, tier) {
+  if (tier === 3) {
+    if (progress.mastery[subtopic_index][3].defense_result === 'passed') {
+      return 100;
+    }
+    return 0;
+  }
+
+  const skill_scores = progress.mastery[subtopic_index][tier].skill_scores;
+  const skill_names = Object.keys(skill_scores);
+  if (skill_names.length === 0) {
+    return 0;
+  }
+
+  let total_score = 0;
+  skill_names.forEach(function (skill_name) {
+    total_score = total_score + skill_scores[skill_name];
+  });
+  const average_score = total_score / skill_names.length;
+
+  const usable_range = MASTERY_THRESHOLD - BKT_PRIOR;
+  const stretched_percent = (average_score - BKT_PRIOR) / usable_range * 100;
+
+  if (stretched_percent < 0) {
+    return 0;
+  }
+  if (stretched_percent > 100) {
+    return 100;
+  }
+  return Math.round(stretched_percent);
+}
+
+
+/* ---- Overall progress + performance history (for the dashboard graph) ----
+
+   The dashboard plots ONE monotonic 0..100% curve across the whole course:
+   Tier 1 spans 0..33%, Tier 2 33..66%, Tier 3 66..100%. A point is recorded
+   after every graded answer, so the curve grows through the session and dies
+   with it (sessionStorage, like everything else). */
+
+const HISTORY_KEY = 'bloom.history';
+
+/* The average display-stretched mastery across all subtopics at one tier. */
+function overall_tier_display_percent(progress, tier) {
+  const subtopic_count = progress.mastery.length;
+  if (subtopic_count === 0) {
+    return 0;
+  }
+
+  let total_percent = 0;
+  for (let subtopic_index = 0; subtopic_index < subtopic_count; subtopic_index = subtopic_index + 1) {
+    total_percent = total_percent + subtopic_display_percent(progress, subtopic_index, tier);
+  }
+  return total_percent / subtopic_count;
+}
+
+/* Global course progress 0..100%: fully-cleared tiers plus the fractional
+   progress through the current tier, spread evenly across the three tiers. */
+function global_progress_percent(progress) {
+  const tiers_fully_cleared = progress.flower_stage;   // 0..3
+
+  let current_tier_percent = 0;
+  if (!progress.course_complete && progress.current_tier <= 3) {
+    current_tier_percent = overall_tier_display_percent(progress, progress.current_tier);
+  }
+
+  let global_percent = (tiers_fully_cleared * 100 + current_tier_percent) / 3;
+  if (global_percent > 100) {
+    global_percent = 100;
+  }
+  return Math.round(global_percent);
+}
+
+/* Read the recorded performance history (an array of global% values). */
+function load_mastery_history() {
+  try {
+    const saved_text = sessionStorage.getItem(HISTORY_KEY);
+    if (saved_text) {
+      return JSON.parse(saved_text);
+    }
+  } catch (error) {
+    /* unreadable — treat as empty */
+  }
+  return [];
+}
+
+/* Append the current global progress to the performance history. */
+function record_mastery_point(progress) {
+  const history = load_mastery_history();
+  history.push(global_progress_percent(progress));
+
+  try {
+    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch (error) {
+    /* nothing we can do; the point just will not persist */
+  }
 }
 
 
@@ -273,4 +393,44 @@ function advance_progress_after_mastery(progress) {
 
   save_progress(progress);
   return 'progression.html';
+}
+
+
+/* ---- Study guide cache (the lazily-generated lessons) ----
+   Each subtopic's study guide is generated on demand the first time the subtopic
+   is opened (see study.html), then kept here so re-opening it never regenerates.
+   They accumulate in one growing { study_guides: [...] } object under
+   STUDY_GUIDES_STORAGE_KEY (defined in data.js, which loads before this file).
+   data.js reads this same cache to build each subtopic's study content. */
+function save_study_guide(guide) {
+  let guides = [];
+
+  // Read whatever guides we already have this session.
+  try {
+    const saved_text = sessionStorage.getItem(STUDY_GUIDES_STORAGE_KEY);
+    if (saved_text) {
+      const parsed = JSON.parse(saved_text);
+      guides = parsed.study_guides || [];
+    }
+  } catch (error) {
+    guides = [];
+  }
+
+  // If we already stored a guide for this subtopic, replace it; otherwise add it.
+  let existing_index = -1;
+  for (let index = 0; index < guides.length; index = index + 1) {
+    if (guides[index] && guides[index].subtopic === guide.subtopic) {
+      existing_index = index;
+      break;
+    }
+  }
+
+  if (existing_index >= 0) {
+    guides[existing_index] = guide;
+  } else {
+    guides.push(guide);
+  }
+
+  const cache_object = { study_guides: guides };
+  sessionStorage.setItem(STUDY_GUIDES_STORAGE_KEY, JSON.stringify(cache_object));
 }

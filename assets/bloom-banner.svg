@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 900 260" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;">
+    <path d="M899,23L899,237C899,249.142 889.142,259 877,259L23,259C10.858,259 1,249.142 1,237L1,23C1,10.858 10.858,1 23,1L877,1C889.142,1 899,10.858 899,23Z" style="fill:url(#_Linear1);stroke:rgb(227,231,221);stroke-width:1px;"/>
+    <g id="Flower" transform="matrix(1,0,0,1,70,40)">
+        <path d="M90,118.8L90,178" style="fill:none;fill-rule:nonzero;stroke:rgb(111,132,104);stroke-width:2px;"/>
+        <g transform="matrix(-0.406737,0.913545,-0.913545,-0.406737,90,118.8)">
+            <path d="M0,0C18,-12.096 9,-34.776 0,-37.8C-9,-34.776 -18,-12.096 0,0Z" style="fill:rgb(124,150,120);fill-opacity:0.32;fill-rule:nonzero;stroke:rgb(111,132,104);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(-0.406737,-0.913545,0.913545,-0.406737,90,118.8)">
+            <path d="M0,0C18,-12.096 9,-34.776 0,-37.8C-9,-34.776 -18,-12.096 0,0Z" style="fill:rgb(124,150,120);fill-opacity:0.32;fill-rule:nonzero;stroke:rgb(111,132,104);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(-0.829038,0.559193,-0.559193,-0.829038,90,118.8)">
+            <path d="M0,0C16.2,-9.677 8.1,-27.821 0,-30.24C-8.1,-27.821 -16.2,-9.677 0,0Z" style="fill:rgb(124,150,120);fill-opacity:0.32;fill-rule:nonzero;stroke:rgb(111,132,104);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(-0.829038,-0.559193,0.559193,-0.829038,90,118.8)">
+            <path d="M0,0C16.2,-9.677 8.1,-27.821 0,-30.24C-8.1,-27.821 -16.2,-9.677 0,0Z" style="fill:rgb(124,150,120);fill-opacity:0.32;fill-rule:nonzero;stroke:rgb(111,132,104);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(0.438371,-0.898794,0.898794,0.438371,90,118.8)">
+            <path d="M0,0C24.3,-23.04 12.15,-66.24 0,-72C-12.15,-66.24 -24.3,-23.04 0,0Z" style="fill:rgb(152,163,189);fill-opacity:0.3;fill-rule:nonzero;stroke:rgb(152,163,189);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(0.848048,-0.529919,0.529919,0.848048,90,118.8)">
+            <path d="M0,0C24.3,-23.04 12.15,-66.24 0,-72C-12.15,-66.24 -24.3,-23.04 0,0Z" style="fill:rgb(152,163,189);fill-opacity:0.3;fill-rule:nonzero;stroke:rgb(152,163,189);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(0.848048,0.529919,-0.529919,0.848048,90,118.8)">
+            <path d="M0,0C24.3,-23.04 12.15,-66.24 0,-72C-12.15,-66.24 -24.3,-23.04 0,0Z" style="fill:rgb(152,163,189);fill-opacity:0.3;fill-rule:nonzero;stroke:rgb(152,163,189);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(0.438371,0.898794,-0.898794,0.438371,90,118.8)">
+            <path d="M0,0C24.3,-23.04 12.15,-66.24 0,-72C-12.15,-66.24 -24.3,-23.04 0,0Z" style="fill:rgb(152,163,189);fill-opacity:0.3;fill-rule:nonzero;stroke:rgb(152,163,189);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(0.906308,-0.422618,0.422618,0.906308,90,118.8)">
+            <path d="M0,0C19.8,-17.28 9.9,-49.68 0,-54C-9.9,-49.68 -19.8,-17.28 0,0Z" style="fill:rgb(238,242,234);fill-rule:nonzero;stroke:rgb(127,143,112);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,90,118.8)">
+            <path d="M0,0C19.8,-17.28 9.9,-49.68 0,-54C-9.9,-49.68 -19.8,-17.28 0,0Z" style="fill:rgb(238,242,234);fill-rule:nonzero;stroke:rgb(127,143,112);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <g transform="matrix(0.906308,0.422618,-0.422618,0.906308,90,118.8)">
+            <path d="M0,0C19.8,-17.28 9.9,-49.68 0,-54C-9.9,-49.68 -19.8,-17.28 0,0Z" style="fill:rgb(238,242,234);fill-rule:nonzero;stroke:rgb(127,143,112);stroke-width:1.5px;stroke-linejoin:round;"/>
+        </g>
+        <circle cx="90" cy="91.8" r="6.3" style="fill:rgb(217,201,138);stroke:rgb(185,164,95);stroke-width:1px;"/>
+    </g>
+    <g transform="matrix(1,0,0,1,320,118)">
+        <text x="0px" y="0px" style="font-family:'Georgia', serif;font-size:70px;fill:rgb(35,42,38);">Bloom</text>
+    </g>
+    <g transform="matrix(1,0,0,1,324,158)">
+        <g transform="matrix(20,0,0,20,163.378906,0)">
+        </g>
+        <g transform="matrix(20,0,0,20,168.935547,0)">
+        </g>
+        <text x="0px" y="0px" style="font-family:'Helvetica';font-size:20px;fill:rgb(107,115,108);">Grow a topic from ﬁrst principles to demonstrated mastery<tspan x="510.928px " y="0px ">.</tspan></text>
+    </g>
+    <g transform="matrix(1,0,0,1,324,182)">
+        <g transform="matrix(1.080656,0,0,1,0,0)">
+            <path d="M290,15C290,23.279 283.78,30 276.12,30L13.88,30C6.22,30 0,23.279 0,15C0,6.721 6.22,0 13.88,0L276.12,0C283.78,0 290,6.721 290,15Z" style="fill:rgb(232,239,228);stroke:rgb(211,224,205);stroke-width:1px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,16,20)">
+            <text x="0px" y="0px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:13px;fill:rgb(60,88,63);">AD<tspan x="18.88px 28.321px 37.043px 45.036px 48.7px 57.423px 66.146px 69.81px 77.574px 86.056px 94.049px 103.489px 115.1px 123.347px 131.841px 135.505px 139.169px 142.833px 152.273px 160.266px 170.43px 180.593px 191.475px 194.618px 203.341px 207.005px 214.039px 223.479px 232.202px 242.366px 251.806px 261.97px " y="0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px 0px ">APTIVE PATHWAY · BLOOM&apos;S TAXONOM</tspan>Y</text>
+        </g>
+    </g>
+    <defs>
+        <linearGradient id="_Linear1" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(898,258,-258,898,1,1)"><stop offset="0" style="stop-color:rgb(244,246,242);stop-opacity:1"/><stop offset="1" style="stop-color:rgb(232,239,228);stop-opacity:1"/></linearGradient>
+    </defs>
+</svg>

@@ -1,24 +1,17 @@
-from dotenv import load_dotenv
-load_dotenv()  # This forces Python to read your .env file immediately!
-
-
 import time
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, BaseMessage, SystemMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.prompt_values import PromptValue
 from backend.shared.schemas import MessageSchema
+from backend.shared.models import get_examiner, get_judge
 from pydantic import BaseModel, Field
-from typing import List, Tuple, Any, Dict, cast
+from typing import List, Tuple, cast
 
-# "ollama:qwen3-coder:30b" --> WHAT IT WAS SUPPOSED TO BE
-
-llm = init_chat_model("ollama:qwen3-coder:30b", temperature=0.8)    
-
-# The judge is a separate job from the examiner: temperature 0 for a
-# consistent verdict. A general instruction-tuned model tends to grade better
-# than a code-specialised one, but any capable local model works.
-judge_llm = init_chat_model("ollama:qwen3-coder:30b", temperature=0.0)
+# The examiner and judge models are no longer built at import time. They are
+# pulled lazily from the central registry (backend/shared/models.py) inside the
+# functions that use them, so importing this module never forces a connection to
+# a provider and a missing model/daemon can no longer crash the server at boot.
+#
+# The judge is a separate job from the examiner: it runs at temperature 0 for a
+# consistent verdict (see get_judge in the registry), while the examiner runs
+# hotter for varied questioning.
 
 # The verdict shape. with_structured_output forces the model to fill exactly
 # these fields.
@@ -41,8 +34,6 @@ class DefenseVerdict(BaseModel):
         "True ONLY when the examiner's message clearly concludes the defense and "
         "grants the student a pass."
     )
-
-verdict_judge = judge_llm.with_structured_output(DefenseVerdict)
 
 JUDGE_SYSTEM = (
     "You read a single message written by an EXAMINER who is running a Socratic "
@@ -111,6 +102,12 @@ def judge_defense(messages: List[Tuple[str, str]]) -> DefenseVerdict:
         ),
     ]
 
+    # Pull the judge model lazily from the registry, then bind it to our verdict
+    # schema. with_structured_output forces the model to fill exactly the
+    # DefenseVerdict fields.
+    judge = get_judge()
+    verdict_judge = judge.with_structured_output(DefenseVerdict)
+
     # with_structured_output is typed as returning dict | BaseModel, so narrow
     # it back to our schema. The judge is bound to DefenseVerdict, so this is
     # the concrete type at runtime.
@@ -136,17 +133,28 @@ def call_model(state: MessageSchema) -> MessageSchema:
 
         # Build the two seed turns with the real topic interpolated in.
         system_prompt = (
-            "You are BloomBot, a chatbot designed to test the understanding of a user on a given topic "
-            "according to the upper two levels of blooms taxonomy (evaluation and synthesis). "
-            "Prompt the user with something regarding the topic, and they will try to defend their stance. "
-            "Your job will be to challenge them according to the aforementioned levels. "
-            "Run a rigorous, multi-exchange defense and keep probing until you are genuinely convinced the "
-            "student has demonstrated mastery at the evaluation and synthesis levels. "
-            "YOU decide when the student passes. Only once you are fully convinced, CONCLUDE the defense: "
-            "clearly congratulate the student and state that they have PASSED the defense — and in that same "
-            "message do NOT ask any further question. As long as you still have any doubt, keep posing "
-            "challenges and do NOT declare a pass. "
-            f"The user's current topic is {topic}. Introduce yourself and provide him the prompt as well as core information."
+            "You are BloomBot, an examiner who tests a student's understanding of a topic at the upper "
+            "two levels of Bloom's taxonomy: EVALUATION (judging, with reasoning) and SYNTHESIS "
+            "(constructing or adapting an approach). Prompt the student with a substantive question and "
+            "have them defend a stance.\n\n"
+            "Run a FOCUSED Socratic defense, not an endless interrogation. Challenge the student's "
+            "reasoning and surface assumptions, but play fair:\n"
+            "- When the student rebuts a challenge with sound, specific reasoning, ACKNOWLEDGE that they "
+            "were right. Do NOT invent a brand-new objection just to keep the defense going.\n"
+            "- Aim to reach a verdict within roughly three to five exchanges. Do not drag it out.\n\n"
+            "The bar for passing is ACHIEVABLE, and you must apply it honestly. Once the student has "
+            "clearly shown BOTH evaluation and synthesis and has defended their position against a couple "
+            "of genuine challenges, they PASS. You do NOT need to be 100 percent certain or to exhaust "
+            "every possible angle — a well-reasoned, well-defended position is a pass even if you can "
+            "still imagine further objections. Do NOT withhold a pass over minor quibbles or 'but what "
+            "about' hypotheticals the student has already reasonably addressed.\n\n"
+            "Only keep challenging if the student's reasoning is genuinely weak, factually wrong, or has "
+            "not yet demonstrated evaluation or synthesis.\n\n"
+            "When the student has met the bar, CONCLUDE the defense: clearly congratulate them and state "
+            "that they have PASSED the defense — and in that same message do NOT ask any further "
+            "question.\n\n"
+            f"The student's current topic is {topic}. Introduce yourself, give the challenge prompt, and "
+            "the core information they need to begin."
         )
 
         kickoff_prompt = (
@@ -160,7 +168,10 @@ def call_model(state: MessageSchema) -> MessageSchema:
     else:
         state.messages.append(("user", state.user_input))
 
-    response = llm.invoke(state.messages)
+    # Pull the examiner model lazily from the registry on each turn (cached
+    # after first use), then generate the next examiner message.
+    examiner = get_examiner()
+    response = examiner.invoke(state.messages)
     state.messages.append(("ai", str(response.content)))
 
     # Ask the separate judge whether the student has now passed. Its result is

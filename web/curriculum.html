@@ -135,9 +135,10 @@
       const status = get_subtopic_status(progress, subtopic_index, progress.current_tier);
       const is_mastered = (status.css_class === 'ok');
 
-      // How full the little progress bar on the card should be: the average
-      // BKT confidence across this subtopic's skills.
-      const percent = subtopic_mastery_percent(progress, subtopic_index, progress.current_tier);
+      // How full the little progress bar on the card should be. Uses the
+      // display-stretched percent so an untouched subtopic reads as 0% rather
+      // than the ~20% the raw BKT prior would show.
+      const percent = subtopic_display_percent(progress, subtopic_index, progress.current_tier);
 
       // Clone the template and fill in this subtopic's details.
       const card_node = card_template.content.cloneNode(true);
