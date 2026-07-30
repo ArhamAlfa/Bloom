@@ -1,57 +1,67 @@
 import os
 import json
 import asyncio
+from typing import List
 
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
+from pydantic import BaseModel, Field
 
 from backend.shared.models import get_study_model
 
 
-def _build_study_prompt() -> PromptTemplate:
-    """
-    Build the study-guide prompt.
+# ------------------------------------------------------------------
+# Structured output schema.
+#
+# The model returns a typed object matching this shape, and the provider handles
+# all JSON string escaping itself. That is what removes the whole class of
+# "invalid json output" failures we used to hit on LaTeX-heavy content (\frac,
+# \vec, etc. are illegal JSON escapes when the model hand-writes them).
+# ------------------------------------------------------------------
+class FurtherReading(BaseModel):
+    title: str
+    url: str
 
-    The reference schema is a checked-in, read-only asset in project_dictionary.
-    Reading it is NOT request state — it is a fixed contract the model output must
-    match. It is injected as a partial variable so the only per-call input is the
-    subtopic skeleton.
-    """
-    reference_schema_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "project_dictionary",
-        "study_engine_subtopic_output.json",
+
+class TierContent(BaseModel):
+    body: str = Field(description="Markdown body with LaTeX ($...$ inline, $$...$$ display).")
+    further_reading: List[FurtherReading] = Field(
+        default_factory=list,
+        description="At least two real, high-quality external resources.",
     )
-    with open(reference_schema_path, "r", encoding="utf-8") as schema_file:
-        reference_schema_string = schema_file.read()
 
-    template = """You are an expert tutor. Generate a comprehensive markdown study guide based strictly on this curriculum skeleton:
-        {subtopic_data}
 
-        Format all educational text using Markdown. Use $ for inline LaTeX equations and $$ for display equations.
-        Escape all JSON backslashes properly.
+class StudySection(BaseModel):
+    heading: str
+    tier_1: TierContent = Field(description="Knowledge & comprehension level content.")
+    tier_2: TierContent = Field(description="Application & analysis level content.")
 
-        IMPORTANT: All capstone tasks MUST be text-based, digital-friendly exercises (e.g., writing a summary, solving a theoretical word problem, or drafting a short essay). Do NOT assign physical projects like posters, 3D models, or real-world lab experiments.
 
-        CRITICAL INSTRUCTIONS:
-            1. Output ONLY raw JSON. Do NOT use markdown code blocks (no ```json).
-            2. DEPTH REQUIREMENT: You MUST generate between 5 to 6 substantial, highly detailed sections per subtopic. Do not take shortcuts or compress the material.
-            3. EXTERNAL LINKS REQUIREMENT: Every section and the capstone MUST include a "further_reading" array containing at least 2 real, high-quality external resources (e.g., Khan Academy, Wikipedia, or authoritative educational platforms) with valid "title" and "url" keys.
-            4. MATH & LATEX: Use formal LaTeX syntax for all scientific or mathematical formulas (e.g., $$ E = mc^2 $$).
-            5. SCHEMA COMPLIANCE: Your output MUST strictly match this exact JSON reference schema structure:
+class StudyIntro(BaseModel):
+    heading: str
+    body: str = Field(description="Markdown overview of the subtopic.")
 
-        {reference_schema}
-        """
 
-    # Only subtopic_data varies per call; reference_schema is fixed via partial.
-    prompt = PromptTemplate(
-        template=template,
-        input_variables=["subtopic_data"],
-        partial_variables={"reference_schema": reference_schema_string},
-    )
-    return prompt
+class StudyCapstone(BaseModel):
+    heading: str
+    body: str = Field(description="A text-based, digital-friendly synthesis task.")
+    further_reading: List[FurtherReading] = Field(default_factory=list)
+
+
+class StudyGuide(BaseModel):
+    subtopic: str
+    intro: StudyIntro
+    sections: List[StudySection] = Field(description="Between 5 and 6 substantial, detailed sections.")
+    capstone: StudyCapstone
+
+
+STUDY_PROMPT_TEMPLATE = """You are an expert tutor. Generate a comprehensive study guide for this subtopic skeleton:
+{subtopic_data}
+
+Requirements:
+- Write all educational text in Markdown. Use $ for inline LaTeX and $$ for display equations, and use formal LaTeX for every formula (for example $$E = mc^2$$).
+- Produce between 5 and 6 substantial, highly detailed sections. Each section has a Tier 1 body (knowledge and comprehension) and a Tier 2 body (application and analysis). Do not compress the material.
+- Every section and the capstone must include a further_reading list of at least two real, high-quality external resources (Khan Academy, Wikipedia, or similar authoritative platforms) with a valid title and url.
+- The capstone must be a text-based, digital-friendly synthesis task, such as writing a summary, solving a theoretical problem, or drafting a short essay. Do not assign physical projects like posters, models, or lab experiments.
+"""
 
 
 async def generate_one_study_guide(subtopic: dict) -> dict:
@@ -59,10 +69,10 @@ async def generate_one_study_guide(subtopic: dict) -> dict:
     Generate ONE subtopic's study guide.
 
     Stateless: the subtopic skeleton arrives as an argument, the finished guide is
-    returned as a dict, and nothing is read from or written to disk except the
-    read-only reference schema. This is the single unit the /api/study endpoint
-    calls — one subtopic per request, so there is no fan-out and no concurrency
-    throttle to manage here.
+    returned as a dict, and nothing is read from or written to disk. Uses native
+    structured output, so the model never hand-writes JSON and the LaTeX-escaping
+    parse failures cannot happen. The retry loop remains only for genuinely
+    transient errors (rate limits, timeouts).
 
     On repeated failure it raises, so the caller can surface a clear error instead
     of storing an empty guide.
@@ -72,11 +82,9 @@ async def generate_one_study_guide(subtopic: dict) -> dict:
     # The model is pulled from the central registry (cached), so which provider is
     # used is decided by STUDY_MODEL in .env, not here.
     llm = get_study_model()
-    parser = JsonOutputParser()
-    prompt = _build_study_prompt()
-    chain = prompt | llm | parser
+    structured_llm = llm.with_structured_output(StudyGuide)
 
-    subtopic_json = json.dumps(subtopic)
+    prompt_text = STUDY_PROMPT_TEMPLATE.format(subtopic_data=json.dumps(subtopic))
 
     max_retries = 3
     backoff_seconds = 10
@@ -85,7 +93,14 @@ async def generate_one_study_guide(subtopic: dict) -> dict:
     for attempt in range(1, max_retries + 1):
         try:
             print(f"Generating study guide for '{subtopic_name}' (attempt {attempt}/{max_retries})...")
-            study_guide = await chain.ainvoke({"subtopic_data": subtopic_json})
+            result = await structured_llm.ainvoke(prompt_text)
+
+            # with_structured_output returns the pydantic model; hand back a dict.
+            if isinstance(result, StudyGuide):
+                study_guide = result.model_dump()
+            else:
+                study_guide = dict(result)
+
             print(f"Finished study guide for '{subtopic_name}'.")
             return study_guide
         except Exception as error:
