@@ -52,7 +52,9 @@ Bloom is **fully stateless**. Every request carries all the context it needs, ev
 
 ## 🚀 Quick start
 
-Bloom is a [uv](https://docs.astral.sh/uv/) project.
+Bloom is a [uv](https://docs.astral.sh/uv/) project. 
+
+You can try it out on [render](https://bloom-phk8.onrender.com/), or set it up yourself with the instructions below:
 
 ```bash
 # 1. install dependencies
